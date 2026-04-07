@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useStore } from "../lib/store.js";
+import { useStore } from "../libs/store";
 
 const VOICE_OPTIONS = [
   "Google US English Male",

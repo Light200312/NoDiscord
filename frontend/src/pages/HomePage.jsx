@@ -1,9 +1,9 @@
 import { Link } from 'react-router-dom'
 
 const heroStats = [
-  { value: '5+', label: 'Arena Modes' },
+  { value: 'Dynamic', label: 'debate simulation' },
   { value: 'Infinity', label: 'Persona Types' },
-  { value: '4', label: 'LLM Providers' },
+  { value: 'Popular LLMs', label: 'by openRouter'},
   { value: 'Live', label: 'AI Judging' },
 ]
 
@@ -48,9 +48,9 @@ const chambers = [
 const sessionSteps = [
   {
     step: 'I',
-    title: 'Pick Your Arena',
+    title: 'Set the Topic',
     description:
-      'Choose a mode: historical, modern, fictional, or custom. The room takes shape around the kind of thinking you need.',
+      'Drop in a question, case, conflict, or scenario. The system frames the session around the pressure point that matters.',
   },
   {
     step: 'II',
@@ -60,34 +60,19 @@ const sessionSteps = [
   },
   {
     step: 'III',
-    title: 'Set the Topic',
-    description:
-      'Drop in a question, case, conflict, or scenario. The system frames the session around the pressure point that matters.',
-  },
-  {
-    step: 'IV',
     title: 'Watch Them Argue',
     description:
       'The conversation escalates through disagreement, expert reasoning, and synthesis until the useful signal becomes impossible to miss.',
   },
+    {
+    step: 'IV',
+    title: 'Auto-Pilot',
+    description:
+      'Sit back and enjoy the debate , No instruction needed just grab a drink listen like a poadcast'
+  },
 ]
 
 const playModes = [
-  {
-    title: 'Combat Mode',
-    description:
-      'Turn broad debate into direct, high-pressure exchanges where weak assumptions are forced into the open.',
-  },
-  {
-    title: 'Mentor Mode',
-    description:
-      'Let world-class teachers become active critics who explain, challenge, and refine your thinking in real time.',
-  },
-  {
-    title: 'Fast Orchestration',
-    description:
-      'Spin up a useful room quickly when you need sharp feedback without slowing down the pace of the work.',
-  },
   {
     title: 'Dynamic Orchestration',
     description:
@@ -97,11 +82,6 @@ const playModes = [
     title: 'Persona Routing',
     description:
       'Blend experts, historical figures, and fictional voices so the strongest perspective enters when the room actually needs it.',
-  },
-  {
-    title: 'Verdict & Export',
-    description:
-      'Capture takeaways, judgments, and structured outputs that are easy to reuse once the debate settles.',
   },
 ]
 
@@ -282,7 +262,7 @@ const HomePage = () => {
           </h2>
         </div>
 
-        <div className="mt-14 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <div className="mt-14 grid gap-4 md:grid-cols-2 xl:grid-cols-3 bg-amber-500">
           {playModes.map((mode) => (
             <article
               key={mode.title}
