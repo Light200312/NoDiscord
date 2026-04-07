@@ -20,35 +20,68 @@ const DOMAIN_OPTIONS = [
   "General",
 ];
 
+const sectionLabelClass =
+  "text-[0.68rem] font-semibold uppercase tracking-[0.28em] text-white/40";
+
+const panelClass =
+  "rounded-[1.5rem] border border-white/10 bg-white/[0.04] shadow-[0_20px_50px_rgba(0,0,0,0.32)] backdrop-blur-sm";
+
+const inputClass =
+  "w-full rounded-xl border border-white/10 bg-[#0c0c0f] px-4 py-3 text-sm text-white placeholder:text-white/30 transition focus:border-sky-300/35 focus:outline-none focus:ring-2 focus:ring-sky-300/15";
+
 function AgentCard({ agent, selected, onToggle }) {
   return (
     <div
-      className={`rounded-lg p-4 cursor-pointer transition border ${
+      className={`${panelClass} cursor-pointer p-4 transition duration-200 ${
         selected
-          ? "border-blue-500 bg-blue-50"
-          : "border-slate-200 hover:border-slate-400 hover:shadow-md"
+          ? "border-amber-300/35 bg-amber-300/[0.08]"
+          : "hover:border-white/18 hover:bg-white/[0.055]"
       }`}
       onClick={onToggle}
     >
       <div className="flex items-start gap-3">
-        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-600 to-purple-600 text-white flex items-center justify-center font-bold">
-          {agent.initials || agent.name.split(" ").slice(0, 2).map(w => w[0]).join("")}
+        <div
+          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border text-sm font-bold ${
+            selected
+              ? "border-amber-300/20 bg-amber-300/15 text-amber-100"
+              : "border-white/10 bg-white/[0.05] text-white/85"
+          }`}
+        >
+          {agent.initials || agent.name.split(" ").slice(0, 2).map((w) => w[0]).join("")}
         </div>
-        <div className="flex-1">
-          <h3 className="font-semibold text-gray-900">{agent.name}</h3>
-          <p className="text-sm text-gray-600">{agent.role}</p>
-          <p className="text-xs text-gray-500 mt-1">{agent.domain}</p>
+
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <h3 className="truncate text-base font-semibold text-white">{agent.name}</h3>
+              <p className="mt-1 text-sm text-white/60">{agent.role}</p>
+            </div>
+            <span
+              className={`mt-1 h-2.5 w-2.5 shrink-0 rounded-full ${
+                selected ? "bg-amber-300" : "bg-white/15"
+              }`}
+            />
+          </div>
+
+          <div className="mt-3 flex flex-wrap gap-2">
+            <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[0.65rem] font-medium uppercase tracking-[0.18em] text-white/45">
+              {agent.domain}
+            </span>
+          </div>
         </div>
       </div>
-      <p className="text-sm text-gray-600 mt-3">{agent.description}</p>
+
+      <p className="mt-4 text-sm leading-6 text-white/62">{agent.description}</p>
+
       <button
-        className={`mt-3 px-3 py-1 rounded text-sm font-medium transition ${
+        type="button"
+        className={`mt-4 w-full rounded-xl border px-3 py-2.5 text-sm font-medium transition ${
           selected
-            ? "bg-blue-600 text-white"
-            : "bg-gray-200 text-gray-900 hover:bg-gray-300"
+            ? "border-amber-300/25 bg-amber-300/12 text-amber-100"
+            : "border-white/10 bg-white/[0.04] text-white/72"
         }`}
       >
-        {selected ? "✓ Selected" : "Select"}
+        {selected ? "Selected" : "Select"}
       </button>
     </div>
   );
@@ -56,23 +89,38 @@ function AgentCard({ agent, selected, onToggle }) {
 
 function SuggestedAgentCard({ agent, justification, onAdd }) {
   return (
-    <div className="rounded-lg bg-slate-50 border border-blue-300 p-4 hover:shadow-md transition">
-      <div className="flex items-start gap-3 mb-2">
-        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 text-white flex items-center justify-center font-bold text-sm">
-          {agent.initials || agent.name.split(" ").slice(0, 2).map(w => w[0]).join("")}
+    <div className={`${panelClass} p-4 transition duration-200 hover:border-white/16`}>
+      <div className="flex items-start gap-3">
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-sky-300/15 bg-sky-300/10 text-sm font-bold text-sky-100">
+          {agent.initials || agent.name.split(" ").slice(0, 2).map((w) => w[0]).join("")}
         </div>
-        <div className="flex-1">
-          <h3 className="font-semibold text-gray-900">{agent.name}</h3>
-          <p className="text-sm text-gray-600">{agent.role}</p>
+
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="min-w-0">
+              <h3 className="truncate text-base font-semibold text-white">{agent.name}</h3>
+              <p className="mt-1 text-sm text-white/60">{agent.role}</p>
+            </div>
+            {agent.domain && (
+              <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[0.65rem] font-medium uppercase tracking-[0.18em] text-white/45">
+                {agent.domain}
+              </span>
+            )}
+          </div>
         </div>
       </div>
+
       {justification && (
-        <p className="text-xs text-slate-600 mb-2 italic">{justification}</p>
+        <div className="mt-4 rounded-xl border border-white/8 bg-white/[0.03] px-3 py-3">
+          <p className="text-xs leading-6 text-white/52">{justification}</p>
+        </div>
       )}
-      <p className="text-sm text-gray-600 mb-3">{agent.description}</p>
+
+      <p className="mt-4 text-sm leading-6 text-white/62">{agent.description}</p>
+
       <button
         onClick={() => onAdd(agent)}
-        className="w-full px-3 py-2 bg-purple-600 text-white rounded text-sm font-medium hover:bg-purple-700"
+        className="mt-4 w-full rounded-xl border border-sky-300/18 bg-sky-300/10 px-3 py-2.5 text-sm font-medium text-sky-50 transition hover:border-sky-300/30 hover:bg-sky-300/14"
       >
         Add to Roster
       </button>
@@ -198,245 +246,376 @@ function AgentsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-4 sm:p-6 lg:p-8 text-black">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">Create Your Debate</h1>
-          <p className="text-gray-600">Set your topic, mood, and select or generate expert agents</p>
-        </div>
+    <div
+      className="relative min-h-screen overflow-hidden bg-[#050505] text-white"
+      style={{ fontFamily: '"Aptos", "Segoe UI", sans-serif' }}
+    >
+      <div className="pointer-events-none absolute inset-0">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.08),transparent_24%),radial-gradient(circle_at_88%_0%,rgba(255,178,102,0.08),transparent_16%)]" />
+        <div className="absolute inset-0 bg-[linear-gradient(to_bottom,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[length:100%_140px] opacity-30" />
+      </div>
 
-        {/* Setup Section */}
-        <div className="bg-white rounded-lg border border-gray-200 p-8 mb-8">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6">Debate Configuration</h2>
-
-          <div className="grid md:grid-cols-2 gap-6 mb-6">
+      <div className="relative mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        <header className="mb-8">
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Debate Topic *
-              </label>
-              <input
-                type="text"
-                value={topic}
-                onChange={(e) => setTopic(e.target.value)}
-                placeholder="e.g., Should AI replace human teachers?"
-                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
+              <p className={sectionLabelClass}>Council Setup</p>
+              <h1
+                className="mt-3 text-3xl font-black tracking-[-0.05em] text-white sm:text-4xl"
+                style={{ fontFamily: '"Bahnschrift", "Aptos", "Segoe UI", sans-serif' }}
+              >
+                Create Your Debate
+              </h1>
+              <p className="mt-3 max-w-2xl text-sm leading-7 text-white/64 sm:text-base">
+                Set the topic, choose the mood, and arrange the right mix of
+                agents for the session.
+              </p>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Discussion Mood
-              </label>
-              <div className="flex gap-2 flex-wrap">
-                {MOOD_OPTIONS.map((option) => (
-                  <button
-                    key={option.value}
-                    onClick={() => setMood(option.value)}
-                    className={`px-3 py-1 rounded text-sm font-medium transition ${
-                      mood === option.value
-                        ? "bg-blue-600 text-white"
-                        : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                    }`}
-                  >
-                    {option.label}
-                  </button>
-                ))}
+            <div className="grid grid-cols-3 gap-3 sm:max-w-md">
+              <div className={`${panelClass} px-4 py-4`}>
+                <p className="text-[0.65rem] font-medium uppercase tracking-[0.22em] text-white/35">
+                  Mode
+                </p>
+                <p className="mt-2 text-base font-semibold text-white capitalize">
+                  {mode}
+                </p>
+              </div>
+              <div className={`${panelClass} px-4 py-4`}>
+                <p className="text-[0.65rem] font-medium uppercase tracking-[0.22em] text-white/35">
+                  Agents Selected
+                </p>
+                <p className="mt-2 text-base font-semibold text-white">
+                  {setup.agentIds.length}
+                </p>
+              </div>
+              <div className={`${panelClass} px-4 py-4`}>
+                <p className="text-[0.65rem] font-medium uppercase tracking-[0.22em] text-white/35">
+                  Library
+                </p>
+                <p className="mt-2 text-base font-semibold text-white">
+                  {agents.length}
+                </p>
               </div>
             </div>
           </div>
+        </header>
 
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm">
-            <p><strong>Topic:</strong> {topic || "(Not set)"}</p>
-            <p><strong>Mood:</strong> {mood} | <strong>Agents:</strong> {setup.agentIds.length}</p>
-          </div>
-
-          <button
-            onClick={handleStart}
-            disabled={!canStart || loading}
-            className="mt-6 w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
-          >
-            {loading ? "Starting..." : "Start Debate"}
-          </button>
-        </div>
-
-        {/* Mode Selector */}
-        <div className="mb-8 flex gap-2">
-          {[
-            { id: "roster", label: "Select from Roster" },
-            { id: "generate", label: "Generate New Agents" },
-            { id: "specific", label: "Create Specific Agent" },
-          ].map((m) => (
-            <button
-              key={m.id}
-              onClick={() => setMode(m.id)}
-              className={`px-4 py-2 rounded-lg transition font-medium ${
-                mode === m.id
-                  ? "bg-blue-600 text-white"
-                  : "bg-white text-gray-700 border border-gray-300 hover:border-gray-400"
-              }`}
-            >
-              {m.label}
-            </button>
-          ))}
-        </div>
-
-        {/* Roster Selection */}
-        {mode === "roster" && (
-          <div className="bg-white rounded-lg border border-gray-200 p-8 mb-8">
-            <h3 className="text-xl font-bold text-gray-900 mb-4">Filter & Select Agents</h3>
-
-            <div className="grid md:grid-cols-2 gap-4 mb-6">
-              <input
-                type="text"
-                placeholder="Search agents..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-              <select
-                value={selectedDomain}
-                onChange={(e) => setSelectedDomain(e.target.value)}
-                className="border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                {DOMAIN_OPTIONS.map((domain) => (
-                  <option key={domain} value={domain}>
-                    Domain: {domain}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filteredAgents.map((agent) => (
-                <AgentCard
-                  key={agent.id}
-                  agent={agent}
-                  selected={setup.agentIds.includes(agent.id)}
-                  onToggle={() => toggleAgent(agent.id)}
-                />
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Generate Agents */}
-        {mode === "generate" && (
-          <div className="bg-white rounded-lg border border-gray-200 p-8 mb-8">
-            <h3 className="text-xl font-bold text-gray-900 mb-4">Generate New Agents</h3>
-            <div className="space-y-4 mb-6">
+        <div className="grid gap-6 xl:grid-cols-[320px,minmax(0,1fr)]">
+          <aside className="xl:sticky xl:top-6 xl:self-start">
+            <div className={`${panelClass} p-5 sm:p-6`}>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Generation Instructions (optional)
-                </label>
-                <textarea
-                  value={generationInstructions}
-                  onChange={(e) => setGenerationInstructions(e.target.value)}
-                  placeholder="e.g., Create agents with expertise in climate science, economics, and policy..."
-                  className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 h-24 resize-none"
-                />
+                <p className={sectionLabelClass}>Session Details</p>
+                <h2
+                  className="mt-3 text-2xl font-black tracking-[-0.04em] text-white"
+                  style={{ fontFamily: '"Bahnschrift", "Aptos", "Segoe UI", sans-serif' }}
+                >
+                  Debate Configuration
+                </h2>
               </div>
-              <button
-                onClick={handleSuggestAgents}
-                disabled={isSuggesting || !topic.trim()}
-                className="w-full bg-purple-600 text-white py-2 rounded-lg font-semibold hover:bg-purple-700 disabled:opacity-50 transition"
-              >
-                {isSuggesting ? "Generating..." : "Generate 4 Agents"}
-              </button>
-            </div>
 
-            {suggestedAgents.length > 0 && (
-              <div>
-                <h4 className="text-lg font-semibold text-gray-900 mb-4">Suggested Agents</h4>
-                <div className="grid md:grid-cols-2 gap-4">
-                  {suggestedAgents.map((agent) => (
-                    <SuggestedAgentCard
-                      key={agent.tempId}
-                      agent={agent}
-                      justification={agent.justification}
-                      onAdd={handleAddDraft}
-                    />
+              <div className="mt-6 space-y-5">
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-white/70">
+                    Debate Topic *
+                  </label>
+                  <input
+                    type="text"
+                    value={topic}
+                    onChange={(e) => setTopic(e.target.value)}
+                    placeholder="e.g., Should AI replace human teachers?"
+                    className={inputClass}
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-5 block text-sm font-medium text-white/70 ">
+                    Discussion Mood
+                  </label>
+                  <div className="grid grid-cols-4 gap-2 max-w-300">
+                    {MOOD_OPTIONS.map((option) => (
+                      <button
+                        key={option.value}
+                        onClick={() => setMood(option.value)}
+                        className={`rounded-xl border px-3 py-2.5 text-sm font-medium transition ${
+                          mood === option.value
+                            ? "border-amber-300/30 bg-amber-300/12 text-amber-100"
+                            : "border-white/10 bg-white/[0.03] text-white/70 hover:border-white/18"
+                        }`}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <button
+                  onClick={handleStart}
+                  disabled={!canStart || loading}
+                  className="w-full rounded-xl border border-white/14 bg-white/10 px-4 py-3 text-sm font-semibold text-white transition hover:border-white/24 hover:bg-white/14 disabled:cursor-not-allowed disabled:opacity-45"
+                >
+                  {loading ? "Starting..." : "Start Debate"}
+                </button>
+              </div>
+            </div>
+          </aside>
+
+          <main className="space-y-6">
+            <section className={`${panelClass} p-4 sm:p-5`}>
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                <div>
+                  <p className={sectionLabelClass}>Add Agents</p>
+                  <h2 className="mt-2 text-xl font-semibold text-white">
+                    Choose where agents come from
+                  </h2>
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    { id: "roster", label: "Roster" },
+                    { id: "generate", label: "Generate" },
+                    { id: "specific", label: "Specific" },
+                  ].map((m) => (
+                    <button
+                      key={m.id}
+                      onClick={() => setMode(m.id)}
+                      className={`rounded-xl border px-4 py-2.5 text-sm font-medium transition ${
+                        mode === m.id
+                          ? "border-sky-300/26 bg-sky-300/12 text-sky-100"
+                          : "border-white/10 bg-white/[0.03] text-white/68 hover:border-white/18"
+                      }`}
+                    >
+                      {m.label}
+                    </button>
                   ))}
                 </div>
               </div>
-            )}
-          </div>
-        )}
+            </section>
 
-        {/* Create Specific Agent */}
-        {mode === "specific" && (
-          <div className="bg-white rounded-lg border border-gray-200 p-8 mb-8">
-            <h3 className="text-xl font-bold text-gray-900 mb-4">Create Specific Agent</h3>
-            <div className="space-y-4 mb-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Agent Name
-                </label>
-                <input
-                  type="text"
-                  value={specificAgentName}
-                  onChange={(e) => setSpecificAgentName(e.target.value)}
-                  placeholder="e.g., Jane Smith"
-                  className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Context Instructions (optional)
-                </label>
-                <textarea
-                  value={generationInstructions}
-                  onChange={(e) => setGenerationInstructions(e.target.value)}
-                  placeholder="e.g., Climate scientist with 20 years of research in Arctic ice dynamics..."
-                  className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 h-20 resize-none"
-                />
-              </div>
-              <button
-                onClick={handleFindSpecific}
-                disabled={isSuggesting || !specificAgentName.trim()}
-                className="w-full bg-purple-600 text-white py-2 rounded-lg font-semibold hover:bg-purple-700 disabled:opacity-50 transition"
-              >
-                {isSuggesting ? "Creating..." : "Create Agent"}
-              </button>
-            </div>
+            {mode === "roster" && (
+              <section className={`${panelClass} p-5 sm:p-6`}>
+                <div className="flex flex-col gap-5">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                    <div>
+                      <h3 className="text-xl font-semibold text-white">
+                        Select from roster
+                      </h3>
+                      <p className="mt-1 text-sm text-white/58">
+                        Search and filter the agents already available in your
+                        library.
+                      </p>
+                    </div>
+                    <span className="text-sm text-white/45">
+                      {filteredAgents.length} result
+                      {filteredAgents.length === 1 ? "" : "s"}
+                    </span>
+                  </div>
 
-            {suggestedAgents.length > 0 && (
-              <div>
-                <h4 className="text-lg font-semibold text-gray-900 mb-4">Created Agent</h4>
-                <div className="max-w-md">
-                  {suggestedAgents.map((agent) => (
-                    <SuggestedAgentCard
-                      key={agent.tempId}
-                      agent={agent}
-                      justification={agent.justification}
-                      onAdd={handleAddDraft}
+                  <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_220px]">
+                    <input
+                      type="text"
+                      placeholder="Search by name, role, or expertise..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className={inputClass}
                     />
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
+                    <select
+                      value={selectedDomain}
+                      onChange={(e) => setSelectedDomain(e.target.value)}
+                      className={inputClass}
+                    >
+                      {DOMAIN_OPTIONS.map((domain) => (
+                        <option key={domain} value={domain} className="bg-slate-950 text-white">
+                          Domain: {domain}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
 
-        {/* Saved Drafts */}
-        {savedDrafts.length > 0 && (
-          <div className="bg-white rounded-lg border border-green-200 p-8">
-            <h3 className="text-xl font-bold text-gray-900 mb-4">✓ Saved Agents</h3>
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {savedDrafts.map((agent) => (
-                <AgentCard
-                  key={agent.id}
-                  agent={agent}
-                  selected={setup.agentIds.includes(agent.id)}
-                  onToggle={() => toggleAgent(agent.id)}
-                />
-              ))}
-            </div>
-          </div>
-        )}
+                  {filteredAgents.length > 0 ? (
+                    <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
+                      {filteredAgents.map((agent) => (
+                        <AgentCard
+                          key={agent.id}
+                          agent={agent}
+                          selected={setup.agentIds.includes(agent.id)}
+                          onToggle={() => toggleAgent(agent.id)}
+                        />
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="rounded-[1.25rem] border border-dashed border-white/10 bg-white/[0.02] px-4 py-10 text-center text-sm text-white/45">
+                      No agents match the current search and domain filter.
+                    </div>
+                  )}
+                </div>
+              </section>
+            )}
+
+            {mode === "generate" && (
+              <section className={`${panelClass} p-5 sm:p-6`}>
+                <div className="flex flex-col gap-5">
+                  <div>
+                    <h3 className="text-xl font-semibold text-white">
+                      Generate new agents
+                    </h3>
+                    <p className="mt-1 text-sm text-white/58">
+                      Describe the kind of voices you want added to the debate.
+                    </p>
+                  </div>
+
+                  <div className="rounded-[1.25rem] border border-white/8 bg-[#0b0b0d] p-4">
+                    <label className="mb-2 block text-sm font-medium text-white/70">
+                      Generation Instructions (optional)
+                    </label>
+                    <textarea
+                      value={generationInstructions}
+                      onChange={(e) => setGenerationInstructions(e.target.value)}
+                      placeholder="e.g., Create agents with expertise in climate science, economics, and policy..."
+                      className={`${inputClass} h-28 resize-none`}
+                    />
+                    <button
+                      onClick={handleSuggestAgents}
+                      disabled={isSuggesting || !topic.trim()}
+                      className="mt-4 w-full rounded-xl border border-amber-300/22 bg-amber-300/12 px-4 py-3 text-sm font-medium text-amber-50 transition hover:border-amber-300/34 hover:bg-amber-300/16 disabled:opacity-45"
+                    >
+                      {isSuggesting ? "Generating..." : "Generate 4 Agents"}
+                    </button>
+                  </div>
+
+                  {suggestedAgents.length > 0 && (
+                    <div>
+                      <div className="mb-4 flex items-center justify-between gap-3">
+                        <h4 className="text-base font-semibold text-white">
+                          Suggested Agents
+                        </h4>
+                        <span className="text-sm text-white/45">
+                          {suggestedAgents.length} ready
+                        </span>
+                      </div>
+
+                      <div className="grid gap-4 md:grid-cols-2">
+                        {suggestedAgents.map((agent) => (
+                          <SuggestedAgentCard
+                            key={agent.tempId}
+                            agent={agent}
+                            justification={agent.justification}
+                            onAdd={handleAddDraft}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </section>
+            )}
+
+            {mode === "specific" && (
+              <section className={`${panelClass} p-5 sm:p-6`}>
+                <div className="flex flex-col gap-5">
+                  <div>
+                    <h3 className="text-xl font-semibold text-white">
+                      Create a specific agent
+                    </h3>
+                    <p className="mt-1 text-sm text-white/58">
+                      Name a person or persona and add optional context to shape
+                      the result.
+                    </p>
+                  </div>
+
+                  <div className="rounded-[1.25rem] border border-white/8 bg-[#0b0b0d] p-4">
+                    <div className="space-y-4">
+                      <div>
+                        <label className="mb-2 block text-sm font-medium text-white/70">
+                          Agent Name
+                        </label>
+                        <input
+                          type="text"
+                          value={specificAgentName}
+                          onChange={(e) => setSpecificAgentName(e.target.value)}
+                          placeholder="e.g., Jane Smith"
+                          className={inputClass}
+                        />
+                      </div>
+
+                      <div>
+                        <label className="mb-2 block text-sm font-medium text-white/70">
+                          Context Instructions (optional)
+                        </label>
+                        <textarea
+                          value={generationInstructions}
+                          onChange={(e) => setGenerationInstructions(e.target.value)}
+                          placeholder="e.g., Climate scientist with 20 years of research in Arctic ice dynamics..."
+                          className={`${inputClass} h-24 resize-none`}
+                        />
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={handleFindSpecific}
+                      disabled={isSuggesting || !specificAgentName.trim()}
+                      className="mt-4 w-full rounded-xl border border-sky-300/20 bg-sky-300/10 px-4 py-3 text-sm font-medium text-sky-50 transition hover:border-sky-300/30 hover:bg-sky-300/14 disabled:opacity-45"
+                    >
+                      {isSuggesting ? "Creating..." : "Create Agent"}
+                    </button>
+                  </div>
+
+                  {suggestedAgents.length > 0 && (
+                    <div>
+                      <h4 className="mb-4 text-base font-semibold text-white">
+                        Created Agent
+                      </h4>
+                      <div className="max-w-xl">
+                        {suggestedAgents.map((agent) => (
+                          <SuggestedAgentCard
+                            key={agent.tempId}
+                            agent={agent}
+                            justification={agent.justification}
+                            onAdd={handleAddDraft}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </section>
+            )}
+
+            {savedDrafts.length > 0 && (
+              <section className={`${panelClass} p-5 sm:p-6`}>
+                <div className="flex flex-col gap-5">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                    <div>
+                      <h3 className="text-xl font-semibold text-white">
+                        Saved agents
+                      </h3>
+                      <p className="mt-1 text-sm text-white/58">
+                        Newly added agents are now part of your roster for this
+                        session.
+                      </p>
+                    </div>
+                    <span className="text-sm text-white/45">
+                      {savedDrafts.length} saved
+                    </span>
+                  </div>
+
+                  <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
+                    {savedDrafts.map((agent) => (
+                      <AgentCard
+                        key={agent.id}
+                        agent={agent}
+                        selected={setup.agentIds.includes(agent.id)}
+                        onToggle={() => toggleAgent(agent.id)}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </section>
+            )}
+          </main>
+        </div>
       </div>
     </div>
   );
 }
 
-export default AgentsPage ;
+export default AgentsPage;
