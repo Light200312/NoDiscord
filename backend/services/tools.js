@@ -821,4 +821,11 @@ export {
   toPersistenceShape,
   upsertInMemoryAgent,
   persistAgent,
+  createId,
+  countMentorMessages,
+  createSystemMessage,
+  buildAgentRoleLabel,
+  projectSession,
+  tokenize,
+  summarizeAgent,
 };
