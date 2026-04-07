@@ -77,6 +77,8 @@ const playModes = [
     title: 'Dynamic Orchestration',
     description:
       'Adapt prompts, references, and framing to the exact room so each session behaves like a custom format instead of a template.',
+    mvp: 
+      ''
   },
   {
     title: 'Persona Routing',

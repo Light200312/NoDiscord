@@ -59,8 +59,113 @@ app.get("/api/health", (_req, res) => {
   res.json({ ok: true, app: "minimal-vr-backend", timestamp: new Date().toISOString() });
 });
 
-///here
 
+app.get("/api/handshake", (req, res) => {
+  const requestOrigin = normalizeOrigin(req.get("origin"));
+  const clientName = String(req.get("x-client-name") || "unknown-client").trim();
+  const handshakeOrigin = requestOrigin || "same-origin/no-origin";
+
+  console.log(
+    `[handshake] Backend connected to ${clientName} from ${handshakeOrigin} at ${new Date().toISOString()}`
+  );
+
+  res.json({
+    connected: true,
+    clientName,
+    backendUrl: `http://localhost:${port}`,
+    handshakeOrigin,
+    timestamp: new Date().toISOString(),
+  });
+});
+
+
+
+app.get("/api/agents", async (_req, res) => {
+  res.json({ agents: await listAgents() });
+});
+
+app.post("/api/agents", async (req, res) => {
+  try {
+    const agent = await createAgent(req.body || {});
+    res.status(201).json({ agent });
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+});
+
+app.post("/api/agents/find", async (req, res) => {
+  try {
+    const result = await findOrDraftAgentByName(req.body || {});
+    res.json(result);
+  } catch (error) {
+    const upstreamStatus = Number(error?.statusCode || error?.response?.status || 0);
+    const status = upstreamStatus >= 400 && upstreamStatus < 600 ? upstreamStatus : 400;
+    const message =
+      String(error?.response?.data?.error?.message || error?.message || "").trim() ||
+      "Failed to create the requested agent draft.";
+    res.status(status).json({ message });
+  }
+});
+
+app.post("/api/agents/suggest", async (req, res) => {
+  try {
+    const result = await suggestAgents(req.body || {});
+    res.json(result);
+  } catch (error) {
+    const upstreamStatus = Number(error?.statusCode || error?.response?.status || 0);
+    const status = upstreamStatus >= 400 && upstreamStatus < 600 ? upstreamStatus : 400;
+    const message =
+      String(error?.response?.data?.error?.message || error?.message || "").trim() || "Failed to suggest agents.";
+    res.status(status).json({ message });
+  }
+});
+
+app.post("/api/session/start", async (req, res) => {
+  try {
+    const session = await startSession(req.body || {});
+    res.status(201).json({ session });
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+});
+
+app.get("/api/session/:sessionId", (req, res) => {
+  const session = getSession(req.params.sessionId);
+  if (!session) {
+    return res.status(404).json({ message: "Session not found." });
+  }
+  return res.json({ session });
+});
+
+app.post("/api/session/:sessionId/message", async (req, res) => {
+  try {
+    const result = await postUserMessage(req.params.sessionId, req.body?.text);
+    res.json(result);
+  } catch (error) {
+    const status = error.message === "Session not found." ? 404 : 400;
+    res.status(status).json({ message: error.message });
+  }
+});
+
+app.post("/api/session/:sessionId/auto-step", async (req, res) => {
+  try {
+    const result = await autoStepSession(req.params.sessionId);
+    res.json(result);
+  } catch (error) {
+    const status = error.message === "Session not found." ? 404 : 400;
+    res.status(status).json({ message: error.message });
+  }
+});
+
+app.post("/api/session/:sessionId/stop", (req, res) => {
+  try {
+    const session = stopSession(req.params.sessionId);
+    res.json({ session });
+  } catch (error) {
+    const status = error.message === "Session not found." ? 404 : 400;
+    res.status(status).json({ message: error.message });
+  }
+});
 app.listen(port, () => {
   console.log(`✓ minimal_vr backend running on http://localhost:${port}`);
   console.log(`✓ Waiting for frontend connections...`);
