@@ -1,5 +1,6 @@
 import './App.css'
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom'
+import Footer from "./components/Footer"
 import Navbar from './components/Navbar'
 import AgentsPage from './pages/AgentsPage'
 import DebatePage from './pages/DebatePage'
@@ -25,6 +26,7 @@ const AppShell = () => {
           <Route path="*" element={<Navigate to="/home" replace />} />
         </Routes>
       </main>
+      <Footer />
     </div>
   )
 }

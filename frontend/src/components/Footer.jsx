@@ -13,15 +13,7 @@ const Footer = () => {
     <footer className="border-t border-white/8 bg-[linear-gradient(180deg,rgba(10,10,10,0.86),rgba(3,3,3,0.98))]">
       <div className="mx-auto flex max-w-7xl flex-col gap-8 px-4 py-10 sm:px-6 lg:flex-row lg:items-end lg:justify-between lg:px-8">
         <div className="max-w-2xl">
-          <Link
-            to="/home"
-            className="inline-flex items-center gap-3 rounded-full border border-white/10 bg-white/[0.03] px-4 py-2 text-white transition hover:border-white/20 hover:bg-white/[0.05]"
-          >
-            <span className="relative block h-8 w-8 rounded-[10px] bg-white shadow-[0_8px_20px_rgba(255,255,255,0.16)]">
-              <span className="absolute bottom-0 right-0 h-3 w-3 rounded-tl-[6px] bg-[#050505]" />
-            </span>
-            <span className="text-base font-semibold tracking-tight">noDiscord</span>
-          </Link>
+
 
           <p className="mt-4 text-sm leading-7 text-white/62 sm:text-base">
             Build a room full of experts, personas, and historical minds, then let the debate
