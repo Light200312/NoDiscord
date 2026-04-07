@@ -15,8 +15,10 @@ const Navbar = () => {
           to="/home"
           className="flex items-center gap-3 rounded-full pr-4 transition-opacity duration-200 hover:opacity-90"
         >
-          <span className="relative block h-8 w-8 rounded-[10px] bg-white shadow-[0_8px_20px_rgba(255,255,255,0.18)]">
-            <span className="absolute bottom-0 right-0 h-3 w-3 rounded-tl-[6px] bg-[#050505]" />
+          <span className="relative block w-12  h-9 overflow-hidden rounded-full shadow-[0_8px_20px_rgba(255,255,255,0.18)]">
+            {/* <span className="absolute bottom-0 right-0 h-3 w-3 rounded-tl-[6px] bg-[#050505]" />
+             */}
+             <img className=' w-12' h-10 src="/logo2.png" alt="" />
           </span>
           <span className="text-lg font-semibold tracking-tight">noDiscord</span>
         </NavLink>

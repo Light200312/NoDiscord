@@ -47,6 +47,7 @@ export function DebatePage() {
   const [selectedVoice, setSelectedVoice] = useState(VOICE_OPTIONS[1]);
   const [speakingId, setSpeakingId] = useState(null);
   const [showAgentInfo, setShowAgentInfo] = useState(null);
+  const [isAgentPanelOpen, setIsAgentPanelOpen] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
@@ -231,7 +232,7 @@ export function DebatePage() {
 
   if (!session) {
     return (
-      <div className="relative flex h-full min-h-0 items-center justify-center overflow-hidden bg-slate-950 px-6">
+      <div className="relative flex lg:h-[88vh] sm:h-[88vh] min-h-0 items-center justify-center overflow-hidden bg-slate-950 px-6">
         <div className="absolute inset-0">
           <div className="absolute inset-0 bg-[linear-gradient(rgba(148,163,184,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(148,163,184,0.08)_1px,transparent_1px)] bg-[size:120px_120px]" />
           <div className="absolute left-1/4 top-20 h-72 w-72 rounded-full bg-blue-500/10 blur-3xl" />
@@ -258,7 +259,7 @@ export function DebatePage() {
   }
 
   return (
-    <div className="relative w-full flex h-full min-h-0 flex-col overflow-hidden bg-slate-950 text-slate-100">
+    <div className="relative w-full flex lg:h-[88vh] min-h-0 flex-col overflow-hidden bg-slate-950 text-slate-100">
       <div className="absolute inset-0">
         <div className="absolute inset-0 bg-[linear-gradient(rgba(148,163,184,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(148,163,184,0.08)_1px,transparent_1px)] bg-[size:120px_120px]" />
         <div className="absolute left-[10%] top-28 h-80 w-80 rounded-full bg-blue-500/10 blur-3xl" />
@@ -270,9 +271,9 @@ export function DebatePage() {
           <div className="flex min-h-0 flex-col overflow-hidden rounded-[28px] border border-slate-800 bg-slate-900/75 shadow-2xl shadow-black/20 backdrop-blur">
             <div className="flex items-center justify-between border-b border-slate-800 px-5 py-4">
               <div>
-                <p className="text-sm font-semibold text-white">Debate Feed</p>
+                <p className="text-sm font-semibold text-white">Debate Topic</p>
                 <p className="text-xs uppercase tracking-[0.25em] text-slate-500">
-                  Voice: {selectedVoice}
+                  {session.topic}
                 </p>
               </div>
               <div className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-slate-300">
@@ -482,70 +483,77 @@ export function DebatePage() {
               </div>
 
               <div className="min-h-0 flex-1 overflow-y-auto p-4">
-                <div className="space-y-3">
+                <div className="space-y-2">
                   {selectedAgents.map((agent) => {
                     const isActive = activeAgentInfo?.id === agent.id;
                     return (
-                      <button
-                        key={agent.id}
-                        type="button"
-                        onClick={() => setShowAgentInfo(agent)}
-                        className={`w-full rounded-2xl border px-4 py-3 text-left transition ${
-                          isActive
-                            ? "border-blue-400/40 bg-blue-500/10"
-                            : "border-slate-800 bg-slate-950/60 hover:border-slate-700 hover:bg-slate-950"
-                        }`}
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-xs font-semibold tracking-[0.2em] text-slate-100">
-                            {getInitials(agent.name)}
+                      <div key={agent.id}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (activeAgentInfo?.id === agent.id) {
+                              // Same agent clicked -> toggle close
+                              setShowAgentInfo('');
+                            } else {
+                              // Different agent clicked -> open it
+                              setShowAgentInfo(agent);
+                            }
+                          }}
+                          className={`w-full rounded-2xl border px-4 py-3 text-left transition ${
+                            isActive
+                              ? "border-blue-400/40 bg-blue-500/10"
+                              : "border-slate-800 bg-slate-950/60 hover:border-slate-700 hover:bg-slate-950"
+                          }`}
+                        >
+                          <div className="flex items-center gap-3 overflow-hidden justify-between">
+                            <div className="flex items-center gap-3 flex-1">
+                              <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-xs font-semibold tracking-[0.2em] text-slate-100 flex-shrink-0">
+                                {getInitials(agent.name)}
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <p className="truncate text-sm font-semibold text-white">{agent.name}</p>
+                                <p className="truncate text-xs uppercase tracking-[0.18em] text-slate-500">
+                                  {agent.role}
+                                </p>
+                              </div>
+                            </div>
+                            <span className={`text-lg transition-transform flex-shrink-0 ${isActive ? "rotate-180" : ""}`}>
+                              ▼
+                            </span>
                           </div>
-                          <div className="min-w-0">
-                            <p className="truncate text-sm font-semibold text-white">{agent.name}</p>
-                            <p className="truncate text-xs uppercase tracking-[0.18em] text-slate-500">
-                              {agent.role}
-                            </p>
+                        </button>
+
+                        {/* Expandable Agent Details */}
+                        <div className={`overflow-hidden transition-all duration-300 ease-in-out ${
+                          isActive ? "max-h-96" : "max-h-0"
+                        }`}>
+                          <div className="p-3 bg-slate-950/40 border border-t-0 border-slate-800 rounded-b-2xl space-y-3">
+                            <div className="space-y-2 text-xs text-slate-300">
+                              <div>
+                                <p className="text-slate-500 font-medium">Domain</p>
+                                <p className="text-slate-200">{agent.domain}</p>
+                              </div>
+                              <div>
+                                <p className="text-slate-500 font-medium">Expertise</p>
+                                <p className="text-slate-200">{agent.expertise}</p>
+                              </div>
+                              <div>
+                                <p className="text-slate-500 font-medium">Stance</p>
+                                <p className="text-slate-200">{agent.stance}</p>
+                              </div>
+                              <div>
+                                <p className="text-slate-500 font-medium">Special Ability</p>
+                                <p className="text-slate-200">{agent.specialAbility}</p>
+                              </div>
+                              <div className="border-t border-slate-800 pt-2">
+                                <p className="text-slate-400 text-xs leading-relaxed">{agent.description}</p>
+                              </div>
+                            </div>
                           </div>
                         </div>
-                      </button>
+                      </div>
                     );
                   })}
-                </div>
-
-                <div className="mt-6 rounded-[24px] border border-slate-800 bg-slate-950/80 p-4">
-                  {activeAgentInfo ? (
-                    <div>
-                      <div className="mb-4 flex items-center justify-between gap-3">
-                        <div>
-                          <p className="text-lg font-semibold text-white">{activeAgentInfo.name}</p>
-                          <p className="text-xs uppercase tracking-[0.22em] text-slate-500">
-                            {activeAgentInfo.role}
-                          </p>
-                        </div>
-                        {showAgentInfo && (
-                          <button
-                            type="button"
-                            onClick={() => setShowAgentInfo(null)}
-                            className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-slate-300 transition hover:bg-white/10"
-                          >
-                            Clear
-                          </button>
-                        )}
-                      </div>
-
-                      <div className="space-y-3 text-sm text-slate-300">
-                        <p><span className="text-slate-500">Domain</span><br />{activeAgentInfo.domain}</p>
-                        <p><span className="text-slate-500">Expertise</span><br />{activeAgentInfo.expertise}</p>
-                        <p><span className="text-slate-500">Stance</span><br />{activeAgentInfo.stance}</p>
-                        <p><span className="text-slate-500">Special Ability</span><br />{activeAgentInfo.specialAbility}</p>
-                        <p className="border-t border-slate-800 pt-3 text-slate-400">{activeAgentInfo.description}</p>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="text-sm text-slate-400">
-                      Select an agent from the roster to inspect their debate profile.
-                    </div>
-                  )}
                 </div>
               </div>
             </div>

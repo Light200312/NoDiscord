@@ -259,12 +259,12 @@ const HomePage = () => {
 
       <section id="play-modes" className="relative mx-auto max-w-6xl px-4 py-20 sm:px-6 lg:px-8 lg:py-24">
         <div className="mx-auto max-w-3xl text-center">
-          <p className={sectionLabelClass}>The Play Modes</p>
+          {/* <p className={sectionLabelClass}>The Play Modes</p> */}
           <h2
             className="mt-4 text-4xl font-black tracking-[-0.06em] text-white sm:text-5xl"
             style={{ fontFamily: '"Bahnschrift", "Aptos", "Segoe UI", sans-serif' }}
           >
-            Choose How You Play
+            Soul of the System
           </h2>
         </div>
 
@@ -272,14 +272,14 @@ const HomePage = () => {
           {playModes.map((mode) => (
             <article
               key={mode.title}
-              className={`${panelClass} flex flex-col md:flex-row gap-8 p-6 sm:p-8 transition duration-300 hover:-translate-y-1 hover:border-white/20`}
+              className={`${panelClass} flex flex-col md:flex-row gap-8 p-6 transition duration-300 hover:-translate-y-1 hover:border-white/20`}
             >
               {/* Image Container (Left Side) */}
-              <div className="shrink-0 flex items-center justify-center w-full md:w-64 h-64 rounded-2xl border border-white/10 bg-white/5 overflow-hidden ">
+              <div className=" relative h-48 w-full overflow-hidden rounded-2xl bg-white/5 md:h-auto md:w-1/3">
                 <img
                   src={mode.image}
                   alt={mode.title}
-                  className="w-full h-full object-contain p-4 opacity-80"
+                  className="w-full h-full object-contain opacity-80"
                   onError={(e) => {
                     e.target.style.display = 'none';
                     e.target.nextSibling.style.display = 'block';
