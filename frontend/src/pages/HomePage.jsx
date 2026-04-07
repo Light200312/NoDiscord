@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { RecentDebates } from '../components/RecentDebates'
 
 const heroStats = [
   { value: 'Dynamic', label: 'debate simulation' },
@@ -347,6 +348,8 @@ const HomePage = () => {
             </div>
           </div>
         </div>
+
+        <RecentDebates />
       </section>
     </div>
   )

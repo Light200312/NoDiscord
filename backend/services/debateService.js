@@ -4,7 +4,6 @@ import { callJsonTask, generateMentorReply } from "./llmClient.js";
 import { createAgentDraft,
   listAgents,
   loadAgentsFromDb,
-  getSession,
   assertSessionOpen,
   selectNextAgent,
   pickUpcomingAgent,
@@ -28,6 +27,11 @@ const agents = [];// list of agents for debate
 const sessions = new Map();//client sessions for debate
 const MAX_ARGUMENTS = 25;// ai will end the debate after 25 mentor messages to avoid infinite debates
 
+// Local getSession that uses this module's sessions map
+function getSession(sessionId) {
+  const session = sessions.get(sessionId);
+  return session ? projectSession(session) : null;
+}
 
 //2
 async function createAgent(payload = {}) {

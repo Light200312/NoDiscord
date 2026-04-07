@@ -366,7 +366,7 @@ export function DebatePage() {
 
             {canContinue ? (
               <form
-                onSubmit={handleSendMessage}
+                // onSubmit={handleSendMessage}
                 className="shrink-0 border-t border-slate-800 bg-slate-900/95 px-3 py-2.5 backdrop-blur"
               >
                 <div className="mx-auto max-w-4xl space-y-2.5 flex items-center gap-2">
@@ -428,7 +428,7 @@ export function DebatePage() {
                       End 
                     </button>
                     <button
-                      type="submit"
+                      onClick={handleSendMessage}
                       disabled={!messageText.trim() || loading}
                       aria-label={loading ? "Waiting for response" : "Send message"}
                       className="flex h-10 w-10 items-center justify-center rounded-full border border-blue-400/30 bg-gradient-to-r from-blue-500 to-cyan-500 text-lg font-semibold text-white transition hover:scale-[1.03] disabled:cursor-not-allowed disabled:opacity-50"
