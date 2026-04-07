@@ -6,6 +6,7 @@ import {
   autoStepSession,
   createAgent,
   findOrDraftAgentByName,
+  generateSessionReport,
   getSession,
   listDebateHistory,
   listAgents,
@@ -14,6 +15,10 @@ import {
   startSession,
   stopSession,
   suggestAgents,
+  walkIntoPastDebate,
+  generateLegalPanel,
+  generateInterviewPanel,
+  generateMedicalPanel,
 } from "./services/debateService.js";
 
 dotenv.config();
@@ -171,6 +176,56 @@ app.post("/api/session/:sessionId/stop", async (req, res) => {
     res.status(status).json({ message: error.message });
   }
 });
+
+app.post("/api/session/:sessionId/report", async (req, res) => {
+  try {
+    const report = await generateSessionReport(req.params.sessionId);
+    res.json({ report });
+  } catch (error) {
+    const status = error.message === "Session not found." ? 404 : 400;
+    res.status(status).json({ message: error.message });
+  }
+});
+
+app.post("/api/debate/history", async (req, res) => {
+  try {
+    const result = await walkIntoPastDebate(req.body || {});
+    res.json(result);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+});
+
+// Learn Indian Laws Feature
+app.post("/api/features/learn-laws", async (req, res) => {
+  try {
+    const result = await generateLegalPanel(req.body || {});
+    res.json(result);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+});
+
+// VR Interview Feature
+app.post("/api/features/vr-interview", async (req, res) => {
+  try {
+    const result = await generateInterviewPanel(req.body || {});
+    res.json(result);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+});
+
+// Health Diagnosis Feature
+app.post("/api/features/health-diagnosis", async (req, res) => {
+  try {
+    const result = await generateMedicalPanel(req.body || {});
+    res.json(result);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+});
+
 app.listen(port, () => {
   console.log(`✓ minimal_vr backend running on http://localhost:${port}`);
   console.log(`✓ Waiting for frontend connections...`);

@@ -46,6 +46,7 @@ const api = {
   sendMessage: (sessionId, text) => http.post(`/api/session/${sessionId}/message`, { text }),
   autoStep: (sessionId) => http.post(`/api/session/${sessionId}/auto-step`),
   stopSession: (sessionId) => http.post(`/api/session/${sessionId}/stop`),
+  generateReport: (sessionId) => http.post(`/api/session/${sessionId}/report`),
 };
 
 export { api, http };

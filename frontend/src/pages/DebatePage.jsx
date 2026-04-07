@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useStore } from "../libs/store";
+import ConcludeDebateModal from "../components/ConcludeDebateModal";
 
 const VOICE_OPTIONS = [
   "Google US English Male",
@@ -53,6 +54,8 @@ export function DebatePage() {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
+  const [isConcluding, setIsConcluding] = useState(false);
+  const [isConcludeModalOpen, setIsConcludeModalOpen] = useState(false);
 
   const messagesEndRef = useRef(null);
   const audioQueueRef = useRef([]);
@@ -253,6 +256,22 @@ export function DebatePage() {
     if (recognitionRef.current && isRecording) {
       recognitionRef.current.stop();
       setIsRecording(false);
+    }
+  };
+
+  const handleConcludeDebate = async () => {
+    if (!session?.id || isConcluding || loading) return;
+    setIsConcluding(true);
+    try {
+      if (!session.closed) {
+        await stopSession();
+      }
+      setIsConcludeModalOpen(true);
+    } catch (error) {
+      console.error("Failed to conclude debate before report generation", error);
+      window.alert("Could not conclude the debate right now. Please try again.");
+    } finally {
+      setIsConcluding(false);
     }
   };
 
@@ -467,10 +486,11 @@ export function DebatePage() {
                   <div className="flex flex-col  items-center w-14 gap-2">
                     <button
                       type="button"
-                      onClick={() => stopSession()}
-                      className="rounded-full border border-white/10 bg-red-500 font-extrabold px-2 py-2 text-xs  text-slate-200 transition hover:bg-white/10"
+                      onClick={handleConcludeDebate}
+                      disabled={isConcluding || loading}
+                      className="rounded-full border border-white/10 bg-red-500 font-extrabold px-2 py-2 text-xs text-slate-200 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
                     >
-                      End 
+                      {isConcluding ? "..." : "End"}
                     </button>
                     <button
                       onClick={handleSendMessage}
@@ -638,10 +658,25 @@ export function DebatePage() {
               >
                 Back to Agents
               </button>
+              <button
+                onClick={() => setIsConcludeModalOpen(true)}
+                className="rounded-full border border-emerald-400/30 bg-emerald-500/15 px-6 py-3 font-semibold text-emerald-100 transition hover:bg-emerald-500/25"
+              >
+                Download Topic Report
+              </button>
             </div>
           </div>
         ) : null}
       </div>
+
+      <ConcludeDebateModal
+        isOpen={isConcludeModalOpen}
+        onClose={() => setIsConcludeModalOpen(false)}
+        topic={session?.topic}
+        sessionId={session?.id}
+        messages={session?.messages || []}
+        participants={selectedAgents}
+      />
     </div>
   );
 }

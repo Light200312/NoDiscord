@@ -8,6 +8,10 @@ import AgentsPage from './pages/AgentsPage'
 import DebatePage from './pages/DebatePage'
 import HistoryPage from './pages/HistoryPage'
 import HomePage from './pages/HomePage'
+import HistoryDebatePage from './pages/HistoryDebatePage'
+import LearnLawsPage from './pages/LearnLawsPage'
+import VRInterviewPage from './pages/VRInterviewPage'
+import HealthDiagnosisPage from './pages/HealthDiagnosisPage'
 
 const AppShell = () => {
   const { pathname } = useLocation()
@@ -28,6 +32,10 @@ const AppShell = () => {
           <Route path="/agensts" element={<Navigate to="/agents" replace />} />
           <Route path="/agents" element={<AgentsPage />} />
           <Route path="/debate" element={<DebatePage />} />
+          <Route path="/history-debate" element={<HistoryDebatePage />} />
+          <Route path="/learn-laws" element={<LearnLawsPage />} />
+          <Route path="/vr-interview" element={<VRInterviewPage />} />
+          <Route path="/health-diagnosis" element={<HealthDiagnosisPage />} />
           <Route path="/history" element={<HistoryPage />} />
           <Route path="*" element={<Navigate to="/home" replace />} />
         </Routes>

@@ -9,6 +9,22 @@ import { generateMentorReply } from "./llmClient.js";
 const agents = [];
 const sessions = new Map();
 const MAX_ARGUMENTS = 25;
+const REPORT_SIGNAL_WORDS = [
+  "should",
+  "must",
+  "because",
+  "therefore",
+  "evidence",
+  "reason",
+  "risk",
+  "policy",
+  "impact",
+  "data",
+  "cost",
+  "benefit",
+  "tradeoff",
+  "solution",
+];
 
 function createId(prefix = "id") {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -527,6 +543,86 @@ function tokenize(text = "") {
     .filter((token) => token.length > 2);
 }
 
+function normalizeText(value = "") {
+  return String(value || "").replace(/\s+/g, " ").trim();
+}
+
+function summarizeText(text = "", maxLength = 180) {
+  const normalized = normalizeText(text);
+  if (!normalized) return "";
+  if (normalized.length <= maxLength) return normalized;
+  return `${normalized.slice(0, maxLength - 1).trimEnd()}…`;
+}
+
+function scoreReportMessage(text = "") {
+  const normalized = normalizeText(text).toLowerCase();
+  const words = normalized.split(/\s+/).filter(Boolean);
+  const signalScore = REPORT_SIGNAL_WORDS.reduce(
+    (score, term) => score + (normalized.includes(term) ? 2 : 0),
+    0
+  );
+  return signalScore + Math.min(words.length, 50) / 10;
+}
+
+function inferHowItHelps(text = "") {
+  const normalized = normalizeText(text).toLowerCase();
+  if (/risk|safety|harm|threat|failure/.test(normalized)) {
+    return "Highlights practical risks and what should be mitigated first.";
+  }
+  if (/cost|budget|price|economic|resource/.test(normalized)) {
+    return "Adds feasibility and resource trade-off clarity.";
+  }
+  if (/data|evidence|study|research|metric/.test(normalized)) {
+    return "Strengthens the discussion with evidence-backed reasoning.";
+  }
+  if (/ethic|fair|privacy|rights|equity/.test(normalized)) {
+    return "Brings ethical and social safeguards into the decision.";
+  }
+  if (/policy|law|regulation|government/.test(normalized)) {
+    return "Connects the proposal to policy and implementation constraints.";
+  }
+  return "Adds a useful perspective that improves the final recommendation.";
+}
+
+function buildFallbackSessionReport(session, messages = []) {
+  const debateMessages = (messages || []).filter(
+    (message) => (message.type === "mentor" || message.type === "user") && normalizeText(message.text)
+  );
+  const keyQuotedArguments = [...debateMessages]
+    .map((message) => ({
+      speaker: message.speakerName || "Council Member",
+      text: normalizeText(message.text),
+      summary: summarizeText(message.text),
+      score: scoreReportMessage(message.text),
+    }))
+    .sort((left, right) => right.score - left.score)
+    .slice(0, 5)
+    .map((message) => ({
+      quote: `"${message.summary}" — ${message.speaker}`,
+      speaker: message.speaker,
+      howItHelps: inferHowItHelps(message.text),
+    }));
+
+  const themes = [...new Set(tokenize(debateMessages.map((message) => message.text).join(" ")))]
+    .slice(0, 4)
+    .join(", ");
+  const topic = normalizeText(session?.topic) || "Untitled debate topic";
+  const mentorTurns = debateMessages.filter((message) => message.type === "mentor").length;
+  const userTurns = debateMessages.filter((message) => message.type === "user").length;
+
+  return {
+    topic,
+    problemDefinition: `This report examines "${topic}" using all available debate turns. The core problem is balancing competing claims while reaching a practical and defensible direction.`,
+    keyQuotedArguments,
+    summary: `The debate included ${debateMessages.length} total turns (${mentorTurns} mentor and ${userTurns} user turns). The strongest recurring themes were ${themes || "multiple competing priorities"}.`,
+    conclusion:
+      keyQuotedArguments.length > 0
+        ? "The debate converges on a balanced path: keep high-impact benefits, reduce key risks, and execute in phased steps with clear checkpoints."
+        : "Given limited discussion data, a cautious conclusion is to move forward incrementally while validating assumptions and managing risk.",
+    source: "fallback",
+  };
+}
+
 function summarizeAgent(agent = {}) {
   return [
     agent.name,
@@ -947,6 +1043,84 @@ async function stopSession(sessionId) {
   return projectSession(session);
 }
 
+async function generateSessionReport(sessionId) {
+  const session = await loadSessionState(sessionId);
+  if (!session) throw new Error("Session not found.");
+
+  const debateMessages = (session.messages || []).filter(
+    (message) => (message.type === "mentor" || message.type === "user") && normalizeText(message.text)
+  );
+  const fallbackReport = buildFallbackSessionReport(session, debateMessages);
+
+  if (!process.env.OPENROUTER_API_KEY || debateMessages.length === 0) {
+    return fallbackReport;
+  }
+
+  const conversation = debateMessages
+    .slice(-60)
+    .map((message) => `${message.speakerName || "Speaker"} (${message.type}): ${normalizeText(message.text)}`)
+    .join("\n");
+
+  try {
+    const report = await callJsonTask({
+      system:
+        "You generate a debate report in strict JSON. Use only grounded content from the conversation. " +
+        "Do not invent facts, names, or quotes. Keep language concise and practical.",
+      prompt: `Create a structured report for this topic:
+${session.topic}
+
+Conversation transcript:
+${conversation}
+
+Return strict JSON only in this shape:
+{
+  "problemDefinition": "2-4 sentences",
+  "keyQuotedArguments": [
+    {
+      "quote": "short direct quote from transcript, max 220 chars",
+      "speaker": "name",
+      "howItHelps": "one sentence"
+    }
+  ],
+  "summary": "1 paragraph summary",
+  "conclusion": "1 paragraph conclusion"
+}
+
+Rules:
+- Include 3 to 5 keyQuotedArguments if available.
+- Quotes must come from the transcript.
+- Keep output useful for a downloadable report.`,
+      temperature: 0.25,
+    });
+
+    const safeProblemDefinition = normalizeText(report?.problemDefinition) || fallbackReport.problemDefinition;
+    const safeSummary = normalizeText(report?.summary) || fallbackReport.summary;
+    const safeConclusion = normalizeText(report?.conclusion) || fallbackReport.conclusion;
+    const safeArguments = Array.isArray(report?.keyQuotedArguments)
+      ? report.keyQuotedArguments
+          .map((entry) => ({
+            quote: summarizeText(entry?.quote || "", 240),
+            speaker: normalizeText(entry?.speaker || "Council Member"),
+            howItHelps: normalizeText(entry?.howItHelps || ""),
+          }))
+          .filter((entry) => entry.quote && entry.howItHelps)
+          .slice(0, 5)
+      : [];
+
+    return {
+      topic: fallbackReport.topic,
+      problemDefinition: safeProblemDefinition,
+      keyQuotedArguments: safeArguments.length ? safeArguments : fallbackReport.keyQuotedArguments,
+      summary: safeSummary,
+      conclusion: safeConclusion,
+      source: "llm",
+    };
+  } catch (error) {
+    console.error("Report generation fallback:", error.message);
+    return fallbackReport;
+  }
+}
+
 async function seedAgents() {
   if (isDbReady()) {
     const stored = await loadAgentsFromDb();
@@ -1082,6 +1256,7 @@ export {
   autoStepSession,
   createAgent,
   findOrDraftAgentByName,
+  generateSessionReport,
   getSession,
   listAgents,
   listDebateHistory,
@@ -1090,4 +1265,331 @@ export {
   startSession,
   stopSession,
   suggestAgents,
+  walkIntoPastDebate,
+  generateLegalPanel,
+  generateInterviewPanel,
+  generateMedicalPanel,
 };
+
+async function walkIntoPastDebate({ topic = "" } = {}) {
+  // Pre-built historians (same as root project)
+  const historians = [
+    {
+      id: createId("historian"),
+      name: "Dr. Margaret Chen",
+      role: "Historian",
+      era: "Contemporary Historian",
+      expertise: "Global history, power structures, revolution",
+      stance: "analytical and evidence-based",
+      description: "Renowned historian specializing in comparative revolutions and power transitions",
+      backstoryLore: "Decades of research on how societies transform when old orders collapse",
+      speechStyle: "scholarly but accessible",
+      personalityTraits: "meticulous, rigorous, thoughtful",
+      openingAngle: "contextualizing the event within broader historical patterns",
+      specialAbility: "Connects events to larger historical trends",
+      stats: { logic: 88, rhetoric: 76, bias: 22 },
+      tags: ["history", "analysis", "evidence"],
+    },
+    {
+      id: createId("historian"),
+      name: "Prof. James Sullivan",
+      role: "Historian",
+      era: "Contemporary Historian",
+      expertise: "Political history, ideology, conflict",
+      stance: "critical and interpretative",
+      description: "Expert in political upheaval and ideological transformation",
+      backstoryLore: "Studied the clash of ideas that shaped historical turning points",
+      speechStyle: "provocative yet reasoned",
+      personalityTraits: "bold, interpretive, challenging",
+      openingAngle: "questioning the dominant narrative",
+      specialAbility: "Challenges conventional interpretations",
+      stats: { logic: 85, rhetoric: 82, bias: 38 },
+      tags: ["politics", "ideology", "critique"],
+    },
+  ];
+
+  // Generate 4 historical figures relevant to the topic using LLM
+  const historicalFiguresPrompt = `You are generating 4 historical figures relevant to the topic: "${topic}"
+    
+Generate 4 distinct historical figures who would have meaningful perspectives on this topic. Return as JSON array with objects containing:
+{
+  "name": "Historical Figure Name",
+  "era": "Time period they lived in",
+  "role": "Their primary role/position",
+  "expertise": "What they were known for",
+  "stance": "Their likely position on this topic",
+  "description": "1-2 sentence description",
+  "backstoryLore": "How they shaped this event/era",
+  "specialAbility": "What made them unique/influential",
+  "stats": {"logic": 70-90, "rhetoric": 60-85, "bias": 20-50}
+}
+
+Ensure they represent different viewpoints on the historical event. Make them specific and historically grounded.`;
+
+  let historicalFigures = [];
+  try {
+    const response = await callJsonTask(historicalFiguresPrompt);
+    historicalFigures = Array.isArray(response) 
+      ? response.map((fig) => ({
+          ...normalizeAgent({
+            ...fig,
+            era: fig.era || "Historical Era",
+            createdFrom: "historical-generation",
+            sourceTopic: topic,
+          }),
+          initials: computeInitials(fig.name),
+        }))
+      : [];
+  } catch (err) {
+    console.error("Failed to generate historical figures:", err.message);
+    // Fallback: create generic historical figures
+    historicalFigures = [
+      {
+        name: "Historical Figure 1",
+        role: "Leader",
+        era: topic,
+        expertise: "Primary participant in events",
+        stats: { logic: 75, rhetoric: 70, bias: 35 },
+      },
+      {
+        name: "Historical Figure 2",
+        role: "Philosopher",
+        era: topic,
+        expertise: "Intellectual perspective",
+        stats: { logic: 80, rhetoric: 75, bias: 28 },
+      },
+      {
+        name: "Historical Figure 3",
+        role: "Chronicler",
+        era: topic,
+        expertise: "Contemporary observer",
+        stats: { logic: 72, rhetoric: 78, bias: 42 },
+      },
+      {
+        name: "Historical Figure 4",
+        role: "Strategist",
+        era: topic,
+        expertise: "Tactical analysis",
+        stats: { logic: 78, rhetoric: 68, bias: 38 },
+      },
+    ].map((fig) =>
+      normalizeAgent({
+        ...fig,
+        id: createId("historical"),
+        createdFrom: "historical-fallback",
+        sourceTopic: topic,
+      })
+    );
+  }
+
+  // Combine and return
+  return {
+    topic,
+    historians: historians.map(toClientAgent),
+    historicalFigures: historicalFigures.map(toClientAgent),
+    totalDebaters: historians.length + historicalFigures.length,
+  };
+}
+
+async function generateLegalPanel({ topic = "" } = {}) {
+  // Use pre-built agents optimized for legal/policy discussions
+  // Minister Kavya (policy expert) + Dr. Sara Nair (evidence-based reasoning)
+  const selectedAgents = agents.filter((agent) =>
+    ["Minister Kavya", "Dr. Sara Nair"].includes(agent.name)
+  );
+
+  // If pre-built agents not available, create fallback
+  const judges = selectedAgents.length > 0
+    ? selectedAgents.slice(0, 2).map((agent) => ({
+        ...agent,
+        id: createId("judge"),
+        role: agent.name === "Minister Kavya" ? "Policy Advisor" : "Evidence Analyst",
+        createdFrom: "legal-prebuilt",
+        sourceTopic: topic,
+      }))
+    : [
+        {
+          id: createId("judge"),
+          name: "Justice Rajesh Kumar",
+          role: "Supreme Court Judge",
+          expertise: "Constitutional law, judicial interpretation",
+          stats: { logic: 90, rhetoric: 80, bias: 15 },
+        },
+        {
+          id: createId("judge"),
+          name: "Justice Priya Sharma",
+          role: "High Court Judge",
+          expertise: "Criminal law, evidence",
+          stats: { logic: 88, rhetoric: 78, bias: 18 },
+        },
+      ];
+
+  // Advocates: use remaining pre-built agents with legal/policy focus
+  const remainingAgents = agents.filter(
+    (agent) => !["Minister Kavya", "Dr. Sara Nair"].includes(agent.name)
+  );
+  const advocates = remainingAgents.length > 0
+    ? remainingAgents.slice(0, 2).map((agent) => ({
+        ...agent,
+        id: createId("advocate"),
+        role: "Advocate",
+        createdFrom: "legal-prebuilt",
+        sourceTopic: topic,
+      }))
+    : [
+        {
+          id: createId("advocate"),
+          name: "Legal Scholar 1",
+          role: "Advocate",
+          expertise: topic || "Legal Analysis",
+          stats: { logic: 85, rhetoric: 75, bias: 25 },
+        },
+        {
+          id: createId("advocate"),
+          name: "Legal Scholar 2",
+          role: "Advocate",
+          expertise: topic || "Legal Analysis",
+          stats: { logic: 82, rhetoric: 78, bias: 30 },
+        },
+      ];
+
+  return {
+    topic,
+    judges: judges.map(toClientAgent),
+    advocates: advocates.map(toClientAgent),
+  };
+}
+
+async function generateInterviewPanel({ scenario = "" } = {}) {
+  // Map scenarios to pre-built agents with matching expertise
+  const scenarioAgentMap = {
+    "startup-pitch": ["Rohan Mallick", "Ava Rao", "Minister Kavya"], // Investor + Tech + Policy
+    "tech-interview": ["Ava Rao", "Nisha Verma", "Prof. Meera Joshi"], // Tech + AI + Learning
+    "management-gd": ["Minister Kavya", "Rohan Mallick", "Prof. Meera Joshi"], // Policy + Business + Pedagogy
+    "hr-interview": ["Prof. Meera Joshi", "Rohan Mallick", "Minister Kavya"], // People focus + business sense + strategy
+    "case-study": ["Ava Rao", "Arjun Patel", "Dr. Sara Nair"], // Technical + practical + evidence
+  };
+
+  // Get the agent names for this scenario
+  const targetAgentNames = scenarioAgentMap[scenario] || ["Ava Rao", "Rohan Mallick", "Prof. Meera Joshi"];
+
+  // Select pre-built agents matching the scenario
+  const selectedAgents = agents.filter((agent) => targetAgentNames.includes(agent.name)).slice(0, 3);
+
+  let interviewers = [];
+
+  if (selectedAgents.length > 0) {
+    // Use pre-built agents as interviewers
+    interviewers = selectedAgents.map((agent) => ({
+      ...agent,
+      id: createId("interviewer"),
+      role: "Interviewer",
+      createdFrom: "interview-prebuilt",
+      sourceTopic: scenario,
+    }));
+  } else {
+    // Fallback: generic interviewers
+    interviewers = [
+      { name: "Senior Interviewer", role: "Lead Evaluator", expertise: scenario || "Interview" },
+      { name: "Technical Assessor", role: "Tech Lead", expertise: "Technical skills" },
+      { name: "Culture Fit Evaluator", role: "Manager", expertise: "Soft skills & culture" },
+    ].map((int) =>
+      normalizeAgent({
+        ...int,
+        id: createId("interviewer"),
+        createdFrom: "interview-fallback",
+        sourceTopic: scenario,
+      })
+    );
+  }
+
+  return {
+    scenario,
+    interviewers: interviewers.map(toClientAgent),
+  };
+}
+
+async function generateMedicalPanel({ case: medicalCase = "" } = {}) {
+  // Use Dr. Sara Nair (evidence-based scientist) as the base medical advisor
+  const scientistAdvisor = agents.find((agent) => agent.name === "Dr. Sara Nair");
+
+  const doctors = scientistAdvisor
+    ? [
+        {
+          ...scientistAdvisor,
+          id: createId("doctor"),
+          role: "Medical Advisor (Evidence-Based)",
+          createdFrom: "medical-prebuilt",
+          sourceTopic: medicalCase,
+        },
+        {
+          id: createId("doctor"),
+          name: "Dr. Neha Gupta",
+          role: "Internist",
+          expertise: "Internal medicine, diagnosis",
+          stats: { logic: 82, rhetoric: 75, bias: 18 },
+          createdFrom: "medical-generated",
+          sourceTopic: medicalCase,
+        },
+      ]
+    : [
+        {
+          id: createId("doctor"),
+          name: "Dr. Amit Verma",
+          role: "General Practitioner",
+          expertise: "Primary care, patient history",
+          stats: { logic: 78, rhetoric: 72, bias: 22 },
+        },
+        {
+          id: createId("doctor"),
+          name: "Dr. Neha Gupta",
+          role: "Internist",
+          expertise: "Internal medicine, diagnosis",
+          stats: { logic: 82, rhetoric: 75, bias: 18 },
+        },
+      ];
+
+  // Generate specialists for domain-specific medical knowledge
+  const specialistsPrompt = `Generate 2 medical specialists relevant to: "${medicalCase}"
+    
+Return JSON array:
+{
+  "name": "string",
+  "role": "Specialist Type",
+  "expertise": "specialty focus",
+  "description": "brief profile"
+}`;
+
+  let specialists = [];
+  try {
+    const response = await callJsonTask(specialistsPrompt);
+    specialists = Array.isArray(response)
+      ? response.map((spec) => ({
+          ...normalizeAgent({
+            ...spec,
+            createdFrom: "medical-specialist",
+            sourceTopic: medicalCase,
+          }),
+          initials: computeInitials(spec.name),
+        }))
+      : [];
+  } catch {
+    specialists = [
+      { name: "Dr. Specialist 1", role: "Specialist", expertise: "Relevant specialty" },
+      { name: "Dr. Specialist 2", role: "Consultant", expertise: "Secondary opinion" },
+    ].map((spec) =>
+      normalizeAgent({
+        ...spec,
+        id: createId("specialist"),
+        createdFrom: "medical-fallback",
+        sourceTopic: medicalCase,
+      })
+    );
+  }
+
+  return {
+    case: medicalCase,
+    doctors: doctors.map(toClientAgent),
+    specialists: specialists.map(toClientAgent),
+  };
+}
