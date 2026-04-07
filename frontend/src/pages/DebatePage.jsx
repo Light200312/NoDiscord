@@ -266,41 +266,6 @@ export function DebatePage() {
       </div>
 
       <div className="relative mx-auto flex h-full min-h-0 w-full max-w-7xl flex-col px-4 py-4 sm:px-6 lg:px-8">
-        <div className="mb-4 shrink-0 rounded-[24px] border border-slate-800 bg-slate-900/80 p-4 shadow-2xl shadow-black/20 backdrop-blur">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-            <div className="min-w-0 max-w-sm flex-1">
-              <div className="mb-4 inline-flex items-center rounded-full border border-white/10 bg-white/5 px-4 py-1 text-xs uppercase tracking-[0.3em] text-slate-300">
-                Live Debate Chamber
-              </div>
-              <h1 className="truncate text-3xl font-semibold text-white sm:text-4xl">{session.topic}</h1>
-             
-            </div>
-
-            <div className="grid shrink-0 grid-cols-2 gap-2 xl:grid-cols-4">
-              <div className="rounded-[18px] border border-slate-800 bg-slate-950/70 px-3 py-2 min-w-[118px]">
-                <p className="text-[10px] uppercase tracking-[0.22em] text-slate-500">Mood</p>
-                <p className="mt-1.5 text-xs font-semibold capitalize text-slate-100">{session.mood}</p>
-              </div>
-              <div className="rounded-[18px] border border-slate-800 bg-slate-950/70 px-3 py-2 min-w-[118px]">
-                <p className="text-[10px] uppercase tracking-[0.22em] text-slate-500">Experts</p>
-                <p className="mt-1.5 text-xs font-semibold text-slate-100">{selectedAgents.length}</p>
-              </div>
-              <div className="rounded-[18px] border border-slate-800 bg-slate-950/70 px-3 py-2 min-w-[118px]">
-                <p className="text-[10px] uppercase tracking-[0.22em] text-slate-500">Arguments</p>
-                <p className="mt-1.5 text-xs font-semibold text-slate-100">
-                  {mentorMessages.length}/{session.maxArguments}
-                </p>
-              </div>
-              <div className="rounded-[18px] border border-slate-800 bg-slate-950/70 px-3 py-2 min-w-[118px]">
-                <p className="text-[10px] uppercase tracking-[0.22em] text-slate-500">Status</p>
-                <p className={`mt-1.5 text-xs font-semibold ${session.closed ? "text-rose-300" : "text-emerald-300"}`}>
-                  {session.closed ? "Debate Ended" : "Debate Active"}
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-
         <div className="grid min-h-0 flex-1 gap-4 overflow-hidden xl:grid-cols-[minmax(0,1fr)_320px]">
           <div className="flex min-h-0 flex-col overflow-hidden rounded-[28px] border border-slate-800 bg-slate-900/75 shadow-2xl shadow-black/20 backdrop-blur">
             <div className="flex items-center justify-between border-b border-slate-800 px-5 py-4">
@@ -475,79 +440,113 @@ export function DebatePage() {
             ) : null}
           </div>
 
-          <aside className="hidden min-h-0 overflow-hidden rounded-[28px] border border-slate-800 bg-slate-900/75 shadow-2xl shadow-black/20 backdrop-blur xl:flex xl:flex-col">
-            <div className="border-b border-slate-800 px-5 py-4">
-              <p className="text-sm font-semibold text-white">Council Roster</p>
-              <p className="text-xs uppercase tracking-[0.25em] text-slate-500">
-                {selectedAgents.length} active voices
+          <aside className="hidden min-h-0 overflow-hidden xl:flex xl:flex-col xl:gap-4">
+            <div className="shrink-0 rounded-[24px] border border-slate-800 bg-slate-900/75 p-4 shadow-2xl shadow-black/20 backdrop-blur">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-400">
+                Live Debate Chamber
               </p>
+              <h1 className="mt-3 text-2xl font-semibold text-white break-words">
+                {session.topic}
+              </h1>
+
+              <div className="mt-4 grid grid-cols-2 gap-2">
+                <div className="rounded-[18px] border border-slate-800 bg-slate-950/70 px-3 py-2">
+                  <p className="text-[10px] uppercase tracking-[0.22em] text-slate-500">Mood</p>
+                  <p className="mt-1.5 text-xs font-semibold capitalize text-slate-100">{session.mood}</p>
+                </div>
+                <div className="rounded-[18px] border border-slate-800 bg-slate-950/70 px-3 py-2">
+                  <p className="text-[10px] uppercase tracking-[0.22em] text-slate-500">Experts</p>
+                  <p className="mt-1.5 text-xs font-semibold text-slate-100">{selectedAgents.length}</p>
+                </div>
+                <div className="rounded-[18px] border border-slate-800 bg-slate-950/70 px-3 py-2">
+                  <p className="text-[10px] uppercase tracking-[0.22em] text-slate-500">Arguments</p>
+                  <p className="mt-1.5 text-xs font-semibold text-slate-100">
+                    {mentorMessages.length}/{session.maxArguments}
+                  </p>
+                </div>
+                <div className="rounded-[18px] border border-slate-800 bg-slate-950/70 px-3 py-2">
+                  <p className="text-[10px] uppercase tracking-[0.22em] text-slate-500">Status</p>
+                  <p className={`mt-1.5 text-xs font-semibold ${session.closed ? "text-rose-300" : "text-emerald-300"}`}>
+                    {session.closed ? "Debate Ended" : "Debate Active"}
+                  </p>
+                </div>
+              </div>
             </div>
 
-            <div className="min-h-0 flex-1 overflow-y-auto p-4">
-              <div className="space-y-3">
-                {selectedAgents.map((agent) => {
-                  const isActive = activeAgentInfo?.id === agent.id;
-                  return (
-                    <button
-                      key={agent.id}
-                      type="button"
-                      onClick={() => setShowAgentInfo(agent)}
-                      className={`w-full rounded-2xl border px-4 py-3 text-left transition ${
-                        isActive
-                          ? "border-blue-400/40 bg-blue-500/10"
-                          : "border-slate-800 bg-slate-950/60 hover:border-slate-700 hover:bg-slate-950"
-                      }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-xs font-semibold tracking-[0.2em] text-slate-100">
-                          {getInitials(agent.name)}
-                        </div>
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-semibold text-white">{agent.name}</p>
-                          <p className="truncate text-xs uppercase tracking-[0.18em] text-slate-500">
-                            {agent.role}
-                          </p>
-                        </div>
-                      </div>
-                    </button>
-                  );
-                })}
+            <div className="min-h-0 flex flex-1 flex-col overflow-hidden rounded-[24px] border border-slate-800 bg-slate-900/75 shadow-2xl shadow-black/20 backdrop-blur">
+              <div className="shrink-0 border-b border-slate-800 px-5 py-4">
+                <p className="text-sm font-semibold text-white">Council Roster</p>
+                <p className="text-xs uppercase tracking-[0.25em] text-slate-500">
+                  {selectedAgents.length} active voices
+                </p>
               </div>
 
-              <div className="mt-6 rounded-[24px] border border-slate-800 bg-slate-950/80 p-4">
-                {activeAgentInfo ? (
-                  <div>
-                    <div className="mb-4 flex items-center justify-between gap-3">
-                      <div>
-                        <p className="text-lg font-semibold text-white">{activeAgentInfo.name}</p>
-                        <p className="text-xs uppercase tracking-[0.22em] text-slate-500">
-                          {activeAgentInfo.role}
-                        </p>
-                      </div>
-                      {showAgentInfo && (
-                        <button
-                          type="button"
-                          onClick={() => setShowAgentInfo(null)}
-                          className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-slate-300 transition hover:bg-white/10"
-                        >
-                          Clear
-                        </button>
-                      )}
-                    </div>
+              <div className="min-h-0 flex-1 overflow-y-auto p-4">
+                <div className="space-y-3">
+                  {selectedAgents.map((agent) => {
+                    const isActive = activeAgentInfo?.id === agent.id;
+                    return (
+                      <button
+                        key={agent.id}
+                        type="button"
+                        onClick={() => setShowAgentInfo(agent)}
+                        className={`w-full rounded-2xl border px-4 py-3 text-left transition ${
+                          isActive
+                            ? "border-blue-400/40 bg-blue-500/10"
+                            : "border-slate-800 bg-slate-950/60 hover:border-slate-700 hover:bg-slate-950"
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-xs font-semibold tracking-[0.2em] text-slate-100">
+                            {getInitials(agent.name)}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-semibold text-white">{agent.name}</p>
+                            <p className="truncate text-xs uppercase tracking-[0.18em] text-slate-500">
+                              {agent.role}
+                            </p>
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
 
-                    <div className="space-y-3 text-sm text-slate-300">
-                      <p><span className="text-slate-500">Domain</span><br />{activeAgentInfo.domain}</p>
-                      <p><span className="text-slate-500">Expertise</span><br />{activeAgentInfo.expertise}</p>
-                      <p><span className="text-slate-500">Stance</span><br />{activeAgentInfo.stance}</p>
-                      <p><span className="text-slate-500">Special Ability</span><br />{activeAgentInfo.specialAbility}</p>
-                      <p className="border-t border-slate-800 pt-3 text-slate-400">{activeAgentInfo.description}</p>
+                <div className="mt-6 rounded-[24px] border border-slate-800 bg-slate-950/80 p-4">
+                  {activeAgentInfo ? (
+                    <div>
+                      <div className="mb-4 flex items-center justify-between gap-3">
+                        <div>
+                          <p className="text-lg font-semibold text-white">{activeAgentInfo.name}</p>
+                          <p className="text-xs uppercase tracking-[0.22em] text-slate-500">
+                            {activeAgentInfo.role}
+                          </p>
+                        </div>
+                        {showAgentInfo && (
+                          <button
+                            type="button"
+                            onClick={() => setShowAgentInfo(null)}
+                            className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-slate-300 transition hover:bg-white/10"
+                          >
+                            Clear
+                          </button>
+                        )}
+                      </div>
+
+                      <div className="space-y-3 text-sm text-slate-300">
+                        <p><span className="text-slate-500">Domain</span><br />{activeAgentInfo.domain}</p>
+                        <p><span className="text-slate-500">Expertise</span><br />{activeAgentInfo.expertise}</p>
+                        <p><span className="text-slate-500">Stance</span><br />{activeAgentInfo.stance}</p>
+                        <p><span className="text-slate-500">Special Ability</span><br />{activeAgentInfo.specialAbility}</p>
+                        <p className="border-t border-slate-800 pt-3 text-slate-400">{activeAgentInfo.description}</p>
+                      </div>
                     </div>
-                  </div>
-                ) : (
-                  <div className="text-sm text-slate-400">
-                    Select an agent from the roster to inspect their debate profile.
-                  </div>
-                )}
+                  ) : (
+                    <div className="text-sm text-slate-400">
+                      Select an agent from the roster to inspect their debate profile.
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </aside>
