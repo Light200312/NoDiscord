@@ -258,14 +258,14 @@ export function DebatePage() {
   }
 
   return (
-    <div className="relative flex h-full min-h-0 flex-col overflow-hidden bg-slate-950 text-slate-100">
+    <div className="relative w-full flex h-full min-h-0 flex-col overflow-hidden bg-slate-950 text-slate-100">
       <div className="absolute inset-0">
         <div className="absolute inset-0 bg-[linear-gradient(rgba(148,163,184,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(148,163,184,0.08)_1px,transparent_1px)] bg-[size:120px_120px]" />
         <div className="absolute left-[10%] top-28 h-80 w-80 rounded-full bg-blue-500/10 blur-3xl" />
         <div className="absolute bottom-16 right-[8%] h-80 w-80 rounded-full bg-fuchsia-500/10 blur-3xl" />
       </div>
 
-      <div className="relative mx-auto flex h-full min-h-0 w-full max-w-7xl flex-col px-4 py-4 sm:px-6 lg:px-8">
+      <div className="relative mx-auto flex h-screen min-h-0 w-full max-w-7xl flex-col px-4 py-4 sm:px-6 lg:px-8">
         <div className="grid min-h-0 flex-1 gap-4 overflow-hidden xl:grid-cols-[minmax(0,1fr)_320px]">
           <div className="flex min-h-0 flex-col overflow-hidden rounded-[28px] border border-slate-800 bg-slate-900/75 shadow-2xl shadow-black/20 backdrop-blur">
             <div className="flex items-center justify-between border-b border-slate-800 px-5 py-4">
@@ -333,11 +333,11 @@ export function DebatePage() {
 
                             {isMentor && (
                               <div className="flex items-center gap-2">
-                                <button
+                                <button 
                                   type="button"
                                   onClick={() => handlePlayAudio(msg.id)}
                                   disabled={isSpeakingNow}
-                                  className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-medium text-slate-200 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
+                                  className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-medium text-slate-200 transition hover:bg-white/10 disabled:cursor-not-allowed  disabled:opacity-50"
                                 >
                                   {isSpeakingNow ? "Playing" : "Play"}
                                 </button>
@@ -368,8 +368,8 @@ export function DebatePage() {
                 onSubmit={handleSendMessage}
                 className="shrink-0 border-t border-slate-800 bg-slate-900/95 px-3 py-2.5 backdrop-blur"
               >
-                <div className="mx-auto max-w-4xl space-y-2.5">
-                  <div className="rounded-[20px] border border-slate-800 bg-slate-950 px-3 py-2.5">
+                <div className="mx-auto max-w-4xl space-y-2.5 flex items-center gap-2">
+                  <div className="rounded-[20px] border w-full border-slate-800 bg-slate-950 px-3 mt-3 py-2.5">
                     <div className="flex flex-wrap items-center gap-1.5 border-b border-slate-800 pb-2">
                       <span className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500">
                         Composer Tools
@@ -418,13 +418,13 @@ export function DebatePage() {
                     />
                   </div>
 
-                  <div className="flex items-center justify-between gap-2">
+                  <div className="flex flex-col  items-center w-14 gap-2">
                     <button
                       type="button"
                       onClick={() => stopSession()}
-                      className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-semibold text-slate-200 transition hover:bg-white/10"
+                      className="rounded-full border border-white/10 bg-red-500 font-extrabold px-2 py-2 text-xs  text-slate-200 transition hover:bg-white/10"
                     >
-                      End Debate
+                      End 
                     </button>
                     <button
                       type="submit"
@@ -432,7 +432,7 @@ export function DebatePage() {
                       aria-label={loading ? "Waiting for response" : "Send message"}
                       className="flex h-10 w-10 items-center justify-center rounded-full border border-blue-400/30 bg-gradient-to-r from-blue-500 to-cyan-500 text-lg font-semibold text-white transition hover:scale-[1.03] disabled:cursor-not-allowed disabled:opacity-50"
                     >
-                      {loading ? "…" : "→"}
+                      {loading ? "…" : "➤"}
                     </button>
                   </div>
                 </div>
@@ -445,9 +445,9 @@ export function DebatePage() {
               <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-400">
                 Live Debate Chamber
               </p>
-              <h1 className="mt-3 text-2xl font-semibold text-white break-words">
+              {/* <h1 className="mt-3 text-xs font-semibold text-white break-words">
                 {session.topic}
-              </h1>
+              </h1> */}
 
               <div className="mt-4 grid grid-cols-2 gap-2">
                 <div className="rounded-[18px] border border-slate-800 bg-slate-950/70 px-3 py-2">

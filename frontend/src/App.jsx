@@ -1,6 +1,5 @@
 import './App.css'
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom'
-import Footer from './components/Footer'
 import Navbar from './components/Navbar'
 import AgentsPage from './pages/AgentsPage'
 import DebatePage from './pages/DebatePage'
@@ -11,14 +10,12 @@ const AppShell = () => {
   const isHomeRoute = pathname === '/' || pathname === '/home'
 
   return (
-    <div className="flex min-h-screen flex-col overflow-x-hidden bg-[#050505] text-white">
+    <div className="min-h-screen overflow-x-hidden bg-[#050505] text-white">
       <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
         <Navbar />
       </div>
 
-      <main
-        className={`flex-1 ${isHomeRoute ? 'pb-0 pt-2' : 'mx-auto max-w-7xl px-4 pb-12 pt-6 sm:px-6 lg:px-8'}`}
-      >
+      <main className={isHomeRoute ? 'pb-0 pt-2' : 'mx-auto max-w-7xl px-4 pb-12 pt-6 sm:px-6 lg:px-8'}>
         <Routes>
           <Route path="/" element={<Navigate to="/home" replace />} />
           <Route path="/home" element={<HomePage />} />
@@ -28,8 +25,6 @@ const AppShell = () => {
           <Route path="*" element={<Navigate to="/home" replace />} />
         </Routes>
       </main>
-
-      <Footer />
     </div>
   )
 }
