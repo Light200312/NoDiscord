@@ -1,14 +1,19 @@
 import './App.css'
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom'
+import { useStore } from './libs/store'
 import Footer from "./components/Footer"
 import Navbar from './components/Navbar'
+import SettingsModal from './components/SettingsModal'
 import AgentsPage from './pages/AgentsPage'
 import DebatePage from './pages/DebatePage'
+import HistoryPage from './pages/HistoryPage'
 import HomePage from './pages/HomePage'
 
 const AppShell = () => {
   const { pathname } = useLocation()
   const isHomeRoute = pathname === '/' || pathname === '/home'
+  const isSettingsModalOpen = useStore((s) => s.isSettingsModalOpen)
+  const closeSettingsModal = useStore((s) => s.closeSettingsModal)
 
   return (
     <div className="min-h-screen overflow-x-hidden bg-[#050505] text-white">
@@ -20,13 +25,16 @@ const AppShell = () => {
         <Routes>
           <Route path="/" element={<Navigate to="/home" replace />} />
           <Route path="/home" element={<HomePage />} />
-          <Route path="/agensts" element={<AgentsPage />} />
-          <Route path="/agents" element={<Navigate to="/agensts" replace />} />
+          <Route path="/agensts" element={<Navigate to="/agents" replace />} />
+          <Route path="/agents" element={<AgentsPage />} />
           <Route path="/debate" element={<DebatePage />} />
+          <Route path="/history" element={<HistoryPage />} />
           <Route path="*" element={<Navigate to="/home" replace />} />
         </Routes>
       </main>
-      <Footer />
+      
+      <SettingsModal isOpen={isSettingsModalOpen} onClose={closeSettingsModal} />
+      {/* <Footer /> */}
     </div>
   )
 }

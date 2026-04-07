@@ -134,7 +134,7 @@ const HomePage = () => {
 
           <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
             <Link
-              to="/debate"
+              to="/agents"
               className="inline-flex min-w-[15rem] items-center justify-center rounded-full border border-white/25 bg-white/10 px-8 py-4 text-sm font-semibold uppercase tracking-[0.22em] text-white transition duration-300 hover:-translate-y-0.5 hover:border-white/50 hover:bg-white/14"
             >
               Convene a Council

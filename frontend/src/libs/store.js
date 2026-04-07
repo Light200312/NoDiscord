@@ -1,293 +1,270 @@
 import { create } from "zustand";
+import { persist } from "zustand/middleware";
 import { api } from "./api";
 
 const initialSetup = {
   topic: "",
-  mood: "balanced",
+  temperature: "analytical",
+  mood: "analytical",
   agentIds: [],
 };
 
-// Persistence keys
-const STORAGE_KEYS = {
-  SETUP: "debate-setup",
-  RECENT_DEBATES: "recent-debates",
-  USER_PREFERENCES: "user-preferences",
+const initialSettings = {
+  orchestrationMode: "dynamic",
+  memoryMode: "minimal",
+  contextMode: "simple",
+  audioAutoSpeak: true,
+  autoLoopEnabled: false,
+  languageMode: "english_in",
+  maxArguments: 25,
 };
 
-// Load from localStorage
-const loadFromStorage = (key, defaultValue) => {
-  try {
-    const stored = localStorage.getItem(key);
-    return stored ? JSON.parse(stored) : defaultValue;
-  } catch (error) {
-    console.error(`Failed to load ${key} from storage:`, error);
-    return defaultValue;
-  }
-};
+const useStore = create(
+  persist(
+    (set, get) => ({
+      agents: [],
+      session: null,
+      setup: initialSetup,
+      settings: initialSettings,
+      loading: false,
+      error: "",
+      history: [],
+      historyLoading: false,
+      isSettingsModalOpen: false,
 
-// Save to localStorage
-const saveToStorage = (key, value) => {
-  try {
-    localStorage.setItem(key, JSON.stringify(value));
-  } catch (error) {
-    console.error(`Failed to save ${key} to storage:`, error);
-  }
-};
+      setSetup: (updater) =>
+        set((state) => ({
+          setup: typeof updater === "function" ? updater(state.setup) : { ...state.setup, ...(updater || {}) },
+        })),
 
-// Add debate to recent list
-const addToRecentDebates = (debate) => {
-  const recent = loadFromStorage(STORAGE_KEYS.RECENT_DEBATES, []);
-  const filtered = recent.filter((d) => d.id !== debate.id);
-  const updated = [debate, ...filtered].slice(0, 10); // Keep last 10
-  saveToStorage(STORAGE_KEYS.RECENT_DEBATES, updated);
-  return updated;
-};
+      setSettings: (updater) =>
+        set((state) => ({
+          settings:
+            typeof updater === "function"
+              ? updater(state.settings)
+              : { ...state.settings, ...(updater || {}) },
+        })),
 
-const useStore = create((set, get) => {
-  // Load persisted setup on initialization
-  const savedSetup = loadFromStorage(STORAGE_KEYS.SETUP, initialSetup);
-  const recentDebates = loadFromStorage(STORAGE_KEYS.RECENT_DEBATES, []);
+      clearError: () => set({ error: "" }),
 
-  return {
-    agents: [],
-    session: null,
-    setup: savedSetup,
-    loading: false,
-    error: "",
-    recentDebates,
+      openSettingsModal: () => set({ isSettingsModalOpen: true }),
 
-    setSetup: (updater) =>
-      set((s) => {
-        const nextSetup = typeof updater === "function" ? updater(s.setup) : updater;
-        const merged = { ...s.setup, ...(nextSetup || {}) };
-        saveToStorage(STORAGE_KEYS.SETUP, merged);
-        return { setup: merged };
-      }),
+      closeSettingsModal: () => set({ isSettingsModalOpen: false }),
 
-    clearError: () => set({ error: "" }),
-
-    loadAgents: async () => {
-      try {
-        const data = await api.listAgents();
-        const nextAgents = data.agents || [];
-        const nextAgentIdSet = new Set(nextAgents.map((agent) => agent.id));
-        set((s) => ({
-          agents: nextAgents,
-          error: "",
-          setup: {
-            ...s.setup,
-            agentIds: (s.setup.agentIds || [])
-              .filter((id) => nextAgentIdSet.has(id))
-              .length
-              ? (s.setup.agentIds || []).filter((id) => nextAgentIdSet.has(id))
-              : nextAgents.slice(0, 3).map((a) => a.id),
-          },
-        }));
-      } catch (err) {
-        set({ error: err.message });
-      }
-    },
-
-    createAgent: async (payload, { selectAfterCreate = true } = {}) => {
-      set({ error: "", loading: true });
-      try {
-        const { agent } = await api.createAgent(payload);
-        await get().loadAgents();
-        if (selectAfterCreate) {
-          set((s) => ({
+      loadAgents: async () => {
+        try {
+          const data = await api.listAgents();
+          const nextAgents = data.agents || [];
+          const nextAgentIdSet = new Set(nextAgents.map((agent) => agent.id));
+          set((state) => ({
+            agents: nextAgents,
+            error: "",
             setup: {
-              ...s.setup,
-              agentIds: s.setup.agentIds.includes(agent.id) ? s.setup.agentIds : [...s.setup.agentIds, agent.id],
+              ...state.setup,
+              agentIds: (state.setup.agentIds || []).filter((id) => nextAgentIdSet.has(id)),
             },
           }));
+        } catch (err) {
+          set({ error: err.message });
         }
-        return agent;
-      } catch (err) {
-        set({ error: err.message });
-        throw err;
-      } finally {
-        set({ loading: false });
-      }
-    },
+      },
 
-  findAgentByName: async (payload) => {
-    set({ error: "", loading: true });
-    try {
-      return await api.findAgentByName(payload);
-    } catch (err) {
-      set({ error: err.message });
-      throw err;
-    } finally {
-      set({ loading: false });
-    }
-  },
-
-  suggestAgents: async (payload) => {
-    set({ error: "", loading: true });
-    try {
-      return await api.suggestAgents(payload);
-    } catch (err) {
-      set({ error: err.message });
-      throw err;
-    } finally {
-      set({ loading: false });
-    }
-  },
-
-  startSession: async () => {
-    const { setup } = get();
-    set({ error: "", loading: true });
-    try {
-      const data = await api.startSession(setup);
-        const session = data.session;
-        set({ session });
-        
-        // Save debate to recent debates
-        const debateRecord = {
-          id: session.id,
-          topic: setup.topic,
-          mood: setup.mood,
-          agentIds: setup.agentIds,
-          createdAt: new Date().toISOString(),
-          status: "active",
-        };
-        
-        const updated = addToRecentDebates(debateRecord);
-        set({ recentDebates: updated });
-        
-        return session;
-      } catch (err) {
-        set({ error: err.message });
-        throw err;
-      } finally {
-        set({ loading: false });
-      }
-    },
-
-    stopSession: async () => {
-      const { session } = get();
-      if (!session?.id) return;
-      set({ error: "", loading: true });
-      try {
-        const data = await api.stopSession(session.id);
-        const updatedSession = data.session;
-        set({ session: updatedSession });
-        
-        // Update recent debates
-        set((s) => ({
-          recentDebates: s.recentDebates.map((d) =>
-            d.id === session.id ? { ...d, status: "ended" } : d
-          ),
-        }));
-        
-        return data;
-      } catch (err) {
-        set({ error: err.message });
-        throw err;
-      } finally {
-        set({ loading: false });
-      }
-    },
-
-    getRecentDebates: () => get().recentDebates,
-
-    clearRecentDebates: () => {
-      saveToStorage(STORAGE_KEYS.RECENT_DEBATES, []);
-      set({ recentDebates: [] });
-    },
-
-    resumeDebate: (debateId) => {
-      const debate = get().recentDebates.find((d) => d.id === debateId);
-      if (!debate) return null;
-      
-      set((s) => ({
-        setup: {
-          topic: debate.topic,
-          mood: debate.mood,
-          agentIds: debate.agentIds,
-        },
-      }));
-      
-      return debate;
-    },
-
-    refreshSession: async (sessionId) => {
-      try {
-        const data = await api.getSession(sessionId);
-        set({ session: data.session });
-      } catch (err) {
-        set({ error: err.message });
-      }
-    },
-
-    sendMessage: async (text) => {
-      const { session } = get();
-      if (!session?.id) return;
-      set({ error: "", loading: true });
-      try {
-        const data = await api.sendMessage(session.id, text);
-        set({ session: data.session });
-      } catch (err) {
-        set({ error: err.message });
-        throw err;
-      } finally {
-        set({ loading: false });
-      }
-    },
-
-    autoStep: async () => {
-      const { session } = get();
-      if (!session?.id) return;
-      set({ error: "", loading: true });
-      try {
-        const data = await api.autoStep(session.id);
-        set({ session: data.session });
-        return data;
-      } catch (err) {
-        set({ error: err.message });
-        throw err;
-      } finally {
-        set({ loading: false });
-      }
-    },
-
-    restartSession: async () => {
-      const { session, setup } = get();
-      set({ error: "", loading: true });
-      if (session?.id && !session.closed) {
+      createAgent: async (payload, { selectAfterCreate = true } = {}) => {
+        set({ error: "", loading: true });
         try {
-          await api.stopSession(session.id);
-        } catch (error) {
-          console.error("Error stopping session:", error);
+          const { agent } = await api.createAgent(payload);
+          await get().loadAgents();
+          if (selectAfterCreate) {
+            set((state) => ({
+              setup: {
+                ...state.setup,
+                agentIds: state.setup.agentIds.includes(agent.id)
+                  ? state.setup.agentIds
+                  : [...state.setup.agentIds, agent.id],
+              },
+            }));
+          }
+          return agent;
+        } catch (err) {
+          set({ error: err.message });
+          throw err;
+        } finally {
+          set({ loading: false });
         }
-      }
-      try {
-        const data = await api.startSession(setup);
-        const newSession = data.session;
-        set({ session: newSession });
-        
-        // Save to recent debates
-        const debateRecord = {
-          id: newSession.id,
-          topic: setup.topic,
-          mood: setup.mood,
-          agentIds: setup.agentIds,
-          createdAt: new Date().toISOString(),
-          status: "active",
-        };
-        
-        const updated = addToRecentDebates(debateRecord);
-        set({ recentDebates: updated });
-        
-        return newSession;
-      } catch (err) {
-        set({ error: err.message });
-        throw err;
-      } finally {
-        set({ loading: false });
-      }
-    },
-  }
-});
+      },
 
-export { useStore };
+      findAgentByName: async (payload) => {
+        set({ error: "", loading: true });
+        try {
+          return await api.findAgentByName(payload);
+        } catch (err) {
+          set({ error: err.message });
+          throw err;
+        } finally {
+          set({ loading: false });
+        }
+      },
+
+      suggestAgents: async (payload) => {
+        set({ error: "", loading: true });
+        try {
+          return await api.suggestAgents(payload);
+        } catch (err) {
+          set({ error: err.message });
+          throw err;
+        } finally {
+          set({ loading: false });
+        }
+      },
+
+      loadHistory: async () => {
+        set({ historyLoading: true, error: "" });
+        try {
+          const data = await api.getHistory();
+          set({ history: data.discussions || [] });
+        } catch (err) {
+          set({ error: err.message, history: [] });
+        } finally {
+          set({ historyLoading: false });
+        }
+      },
+
+      startSession: async () => {
+        const { setup, settings } = get();
+        set({ error: "", loading: true });
+        try {
+          const effectiveTemperature = String(setup.temperature || setup.mood || "analytical").trim();
+          const data = await api.startSession({
+            ...setup,
+            temperature: effectiveTemperature,
+            mood: setup.mood || effectiveTemperature,
+            settings,
+            maxArguments: settings.maxArguments,
+            orchestrationMode: settings.orchestrationMode,
+            memoryMode: settings.memoryMode,
+            contextMode: settings.contextMode,
+            languageMode: settings.languageMode,
+          });
+          set({ session: data.session });
+          await get().loadHistory();
+          return data.session;
+        } catch (err) {
+          set({ error: err.message });
+          throw err;
+        } finally {
+          set({ loading: false });
+        }
+      },
+
+      stopSession: async () => {
+        const { session } = get();
+        if (!session?.id) return null;
+        set({ error: "", loading: true });
+        try {
+          const data = await api.stopSession(session.id);
+          set({ session: data.session });
+          await get().loadHistory();
+          return data.session;
+        } catch (err) {
+          set({ error: err.message });
+          throw err;
+        } finally {
+          set({ loading: false });
+        }
+      },
+
+      refreshSession: async (sessionId) => {
+        try {
+          const data = await api.getSession(sessionId);
+          set({ session: data.session, error: "" });
+          return data.session;
+        } catch (err) {
+          set({ error: err.message });
+          throw err;
+        }
+      },
+
+      openHistorySession: async (sessionId) => {
+        set({ loading: true, error: "" });
+        try {
+          const data = await api.getSession(sessionId);
+          const session = data.session;
+          set({
+            session,
+            setup: {
+              topic: session.topic || "",
+              mood: session.mood || "balanced",
+              agentIds: session.agentIds || [],
+            },
+            settings: {
+              ...get().settings,
+              ...(session.settings || {}),
+              orchestrationMode: session.orchestrationMode || session.settings?.orchestrationMode || "dynamic",
+              memoryMode: session.memoryMode || session.settings?.memoryMode || "minimal",
+              contextMode: session.contextMode || session.settings?.contextMode || "simple",
+              languageMode: session.languageMode || session.settings?.languageMode || "english_in",
+              maxArguments: session.maxArguments || get().settings.maxArguments,
+            },
+          });
+          return session;
+        } catch (err) {
+          set({ error: err.message });
+          throw err;
+        } finally {
+          set({ loading: false });
+        }
+      },
+
+      sendMessage: async (text) => {
+        const { session } = get();
+        if (!session?.id) return null;
+        set({ error: "", loading: true });
+        try {
+          const data = await api.sendMessage(session.id, text);
+          set({ session: data.session });
+          await get().loadHistory();
+          return data;
+        } catch (err) {
+          set({ error: err.message });
+          throw err;
+        } finally {
+          set({ loading: false });
+        }
+      },
+
+      autoStep: async () => {
+        const { session } = get();
+        if (!session?.id) return null;
+        set({ error: "", loading: true });
+        try {
+          const data = await api.autoStep(session.id);
+          set({ session: data.session });
+          await get().loadHistory();
+          return data;
+        } catch (err) {
+          set({ error: err.message });
+          throw err;
+        } finally {
+          set({ loading: false });
+        }
+      },
+
+      restartSession: async () => {
+        const { session } = get();
+        if (session?.id && !session.closed) {
+          await get().stopSession().catch(() => null);
+        }
+        return get().startSession();
+      },
+    }),
+    {
+      name: "no-discord-store",
+      partialize: (state) => ({
+        setup: state.setup,
+        settings: state.settings,
+      }),
+    }
+  )
+);
+
+export { initialSettings, initialSetup, useStore };

@@ -1,86 +1,63 @@
-import { useStore } from "../libs/store";
+import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { useStore } from "../libs/store";
 
 export function RecentDebates() {
   const navigate = useNavigate();
-  const recentDebates = useStore((s) => s.recentDebates);
-  const loadAgents = useStore((s) => s.loadAgents);
-  const resumeDebate = useStore((s) => s.resumeDebate);
-  const clearRecentDebates = useStore((s) => s.clearRecentDebates);
+  const history = useStore((state) => state.history);
+  const historyLoading = useStore((state) => state.historyLoading);
+  const loadAgents = useStore((state) => state.loadAgents);
+  const loadHistory = useStore((state) => state.loadHistory);
+  const openHistorySession = useStore((state) => state.openHistorySession);
 
-  const handleResume = (debateId) => {
-    const debate = resumeDebate(debateId);
-    if (debate) {
-      loadAgents();
-      navigate("/agents");
-    }
+  useEffect(() => {
+    loadHistory();
+  }, [loadHistory]);
+
+  const handleResume = async (debateId) => {
+    await loadAgents();
+    await openHistorySession(debateId);
+    navigate("/debate");
   };
 
-  const handleClear = () => {
-    if (window.confirm("Clear all recent debates?")) {
-      clearRecentDebates();
-    }
-  };
-
-  if (!recentDebates || recentDebates.length === 0) {
+  if (historyLoading || !history || history.length === 0) {
     return null;
   }
 
   return (
     <div className="mt-8 rounded-[24px] border border-slate-800 bg-slate-900/75 p-6 shadow-2xl shadow-black/20 backdrop-blur">
-      <div className="flex items-center justify-between mb-4">
+      <div className="mb-4 flex items-center justify-between">
         <div>
           <p className="text-sm font-semibold text-white">Recent Debates</p>
           <p className="text-xs uppercase tracking-[0.25em] text-slate-500">
-            {recentDebates.length} saved session{recentDebates.length !== 1 ? "s" : ""}
+            {history.length} saved session{history.length !== 1 ? "s" : ""}
           </p>
         </div>
-        {recentDebates.length > 0 && (
-          <button
-            onClick={handleClear}
-            className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-slate-300 transition hover:bg-white/10"
-          >
-            Clear All
-          </button>
-        )}
       </div>
 
-      <div className="space-y-2 max-h-72 overflow-y-auto">
-        {recentDebates.map((debate) => (
+      <div className="max-h-72 space-y-2 overflow-y-auto">
+        {history.slice(0, 10).map((debate) => (
           <div
             key={debate.id}
-            className="rounded-lg border border-slate-800 bg-slate-950/60 p-3 hover:border-slate-700 transition"
+            className="rounded-lg border border-slate-800 bg-slate-950/60 p-3 transition hover:border-slate-700"
           >
             <div className="flex items-start justify-between gap-3">
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-white truncate">
-                  {debate.topic || "Untitled Debate"}
-                </p>
-                <div className="flex items-center gap-2 mt-1 text-xs text-slate-400">
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-semibold text-white">{debate.topic || "Untitled Debate"}</p>
+                <div className="mt-1 flex items-center gap-2 text-xs text-slate-400">
                   <span className="capitalize">{debate.mood}</span>
                   <span>•</span>
                   <span>{debate.agentIds?.length || 0} agents</span>
-                  <span>•</span>
-                  <span
-                    className={`font-medium ${
-                      debate.status === "active"
-                        ? "text-emerald-400"
-                        : "text-slate-400"
-                    }`}
-                  >
-                    {debate.status === "active" ? "Active" : "Ended"}
-                  </span>
                 </div>
-                <p className="text-xs text-slate-500 mt-1">
-                  {new Date(debate.createdAt).toLocaleDateString()} at{" "}
-                  {new Date(debate.createdAt).toLocaleTimeString()}
+                <p className="mt-1 text-xs text-slate-500">
+                  {new Date(debate.lastActivityAt || debate.createdAt || Date.now()).toLocaleString()}
                 </p>
               </div>
               <button
                 onClick={() => handleResume(debate.id)}
                 className="shrink-0 rounded-full border border-blue-400/30 bg-blue-500/10 px-3 py-1.5 text-xs font-medium text-blue-300 transition hover:bg-blue-500/20"
               >
-                Resume
+                Open
               </button>
             </div>
           </div>

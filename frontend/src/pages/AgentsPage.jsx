@@ -2,11 +2,14 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useStore } from "../libs/store.js";
 
-const MOOD_OPTIONS = [
-  { value: "supportive", label: "Supportive" },
-  { value: "balanced", label: "Balanced" },
-  { value: "skeptical", label: "Skeptical" },
-  { value: "aggressive", label: "Aggressive" },
+const TEMPERATURE_OPTIONS = [
+  { value: "hostile", label: "Hostile", emoji: "\u{1F525}" },
+  { value: "adversarial", label: "Adversarial", emoji: "\u2694\uFE0F" },
+  { value: "competitive", label: "Competitive", emoji: "\u{1F3AF}" },
+  { value: "analytical", label: "Analytical", emoji: "\u{1F9E0}" },
+  { value: "dialectical", label: "Dialectical", emoji: "\u{1F91D}" },
+  { value: "collaborative", label: "Collaborative", emoji: "\u{1F4AC}" },
+  { value: "reflective", label: "Reflective", emoji: "\u{1F33F}" },
 ];
 
 const DOMAIN_OPTIONS = [
@@ -133,6 +136,7 @@ function AgentsPage() {
   const agents = useStore((s) => s.agents);
   const loading = useStore((s) => s.loading);
   const setup = useStore((s) => s.setup);
+  const settings = useStore((s) => s.settings);
   const setSetup = useStore((s) => s.setSetup);
   const startSession = useStore((s) => s.startSession);
   const loadAgents = useStore((s) => s.loadAgents);
@@ -141,19 +145,73 @@ function AgentsPage() {
   const findAgentByName = useStore((s) => s.findAgentByName);
 
   const [topic, setTopic] = useState(setup.topic || "");
-  const [mood, setMood] = useState(setup.mood || "balanced");
-  const [mode, setMode] = useState("roster"); // "roster", "generate", "specific"
+  const [temperature, setTemperature] = useState(setup.temperature || setup.mood || "analytical");
+  const [mode, setMode] = useState("roster");
   const [generationInstructions, setGenerationInstructions] = useState("");
   const [specificAgentName, setSpecificAgentName] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedDomain, setSelectedDomain] = useState("All");
   const [suggestedAgents, setSuggestedAgents] = useState([]);
   const [isSuggesting, setIsSuggesting] = useState(false);
-  const [savedDrafts, setSavedDrafts] = useState([]);
+  const [scopeMode, setScopeMode] = useState("global");
+  const [scopeCountry, setScopeCountry] = useState("");
+  const [userLocation, setUserLocation] = useState({
+    country: "Your Country",
+    state: "",
+    city: "Your Location",
+    loading: false,
+  });
+
+  const persistDraftsIfNeeded = async (drafts) => {
+    if (!drafts.length) return drafts;
+    const saved = [];
+    for (const draft of drafts) {
+      const agent = await createAgent(draft, { selectAfterCreate: true });
+      saved.push(agent);
+    }
+    return [];
+  };
 
   useEffect(() => {
     loadAgents();
   }, [loadAgents]);
+
+  useEffect(() => {
+    const fetchUserLocation = async () => {
+      setUserLocation((prev) => ({ ...prev, loading: true }));
+      try {
+        if (navigator.geolocation) {
+          navigator.geolocation.getCurrentPosition(
+            async (position) => {
+              const { latitude, longitude } = position.coords;
+              // Use Open-Meteo or similar free reverse geocoding service
+              const response = await fetch(
+                `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`
+              );
+              const data = await response.json();
+              
+              const address = data.address || {};
+              setUserLocation({
+                country: address.country || "Your Country",
+                state: address.state || "",
+                city: address.city || address.town || address.village || "Your Location",
+                loading: false,
+              });
+            },
+            (error) => {
+              console.log("Geolocation error:", error);
+              setUserLocation((prev) => ({ ...prev, loading: false }));
+            }
+          );
+        }
+      } catch (error) {
+        console.log("Location fetch error:", error);
+        setUserLocation((prev) => ({ ...prev, loading: false }));
+      }
+    };
+
+    fetchUserLocation();
+  }, []);
 
   const filteredAgents = agents.filter((agent) => {
     const matchesDomain =
@@ -162,7 +220,7 @@ function AgentsPage() {
       !searchTerm ||
       agent.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       agent.role.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      agent.expertise.toLowerCase().includes(searchTerm.toLowerCase());
+      String(agent.expertise || "").toLowerCase().includes(searchTerm.toLowerCase());
     return matchesDomain && matchesSearch;
   });
 
@@ -185,17 +243,29 @@ function AgentsPage() {
     }
     setIsSuggesting(true);
     try {
-      const result = await suggestAgents({
+      const payload = {
         topic: topic.trim(),
         count: 4,
         instructions: generationInstructions.trim(),
-      });
-      const drafted = result.suggestions.map((item, idx) => ({
+        scopeMode,
+      };
+      
+      if (scopeMode === "country" && scopeCountry) {
+        payload.scopeCountry = scopeCountry;
+      } else if (scopeMode === "current_location") {
+        payload.scopeCountry = userLocation.country;
+        payload.scopeCity = userLocation.city;
+        payload.scopeState = userLocation.state;
+      }
+
+      const result = await suggestAgents(payload);
+      const drafted = (result.suggestions || []).map((item, idx) => ({
         ...item.draft,
         justification: item.justification,
         tempId: `draft-${Date.now()}-${idx}`,
       }));
-      setSuggestedAgents(drafted);
+      const unsavedDrafts = await persistDraftsIfNeeded(drafted);
+      setSuggestedAgents(unsavedDrafts);
     } catch (error) {
       alert("Failed to generate agents: " + error.message);
     } finally {
@@ -210,12 +280,25 @@ function AgentsPage() {
     }
     setIsSuggesting(true);
     try {
-      const result = await findAgentByName({
+      const payload = {
         name: specificAgentName.trim(),
         topic: topic.trim(),
         instructions: generationInstructions.trim(),
-      });
-      setSuggestedAgents([{ ...result.draft, tempId: `draft-${Date.now()}` }]);
+        scopeMode,
+      };
+
+      if (scopeMode === "country" && scopeCountry) {
+        payload.scopeCountry = scopeCountry;
+      } else if (scopeMode === "current_location") {
+        payload.scopeCountry = userLocation.country;
+        payload.scopeCity = userLocation.city;
+        payload.scopeState = userLocation.state;
+      }
+
+      const result = await findAgentByName(payload);
+      const drafts = [{ ...result.draft, tempId: `draft-${Date.now()}` }];
+      const unsavedDrafts = await persistDraftsIfNeeded(drafts);
+      setSuggestedAgents(unsavedDrafts);
     } catch (error) {
       alert("Failed to create agent: " + error.message);
     } finally {
@@ -226,7 +309,6 @@ function AgentsPage() {
   const handleAddDraft = async (draftAgent) => {
     try {
       const newAgent = await createAgent(draftAgent, { selectAfterCreate: true });
-      setSavedDrafts([...savedDrafts, newAgent]);
       setSuggestedAgents(suggestedAgents.filter((s) => s.tempId !== draftAgent.tempId));
     } catch (error) {
       alert("Failed to save agent: " + error.message);
@@ -236,7 +318,13 @@ function AgentsPage() {
   const canStart = topic.trim() && setup.agentIds.length > 0;
 
   const handleStart = async () => {
-    setSetup({ topic, mood, agentIds: setup.agentIds });
+    setSetup({
+      topic,
+      temperature,
+      // Keep mood for backward compatibility with existing backend payloads.
+      mood: temperature,
+      agentIds: setup.agentIds,
+    });
     try {
       await startSession();
       navigate("/debate");
@@ -267,7 +355,7 @@ function AgentsPage() {
                 Create Your Debate
               </h1>
               <p className="mt-3 max-w-2xl text-sm leading-7 text-white/64 sm:text-base">
-                Set the topic, choose the mood, and arrange the right mix of
+                Set the topic, choose the temperature, and arrange the right mix of
                 agents for the session.
               </p>
             </div>
@@ -330,24 +418,26 @@ function AgentsPage() {
 
                 <div>
                   <label className="mb-5 block text-sm font-medium text-white/70 ">
-                    Discussion Mood
+                    Debate Temperature
                   </label>
-                  <div className="grid grid-cols-4 gap-2 max-w-300">
-                    {MOOD_OPTIONS.map((option) => (
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                    {TEMPERATURE_OPTIONS.map((option) => (
                       <button
                         key={option.value}
-                        onClick={() => setMood(option.value)}
+                        onClick={() => setTemperature(option.value)}
                         className={`rounded-xl border px-3 py-2.5 text-sm font-medium transition ${
-                          mood === option.value
+                          temperature === option.value
                             ? "border-amber-300/30 bg-amber-300/12 text-amber-100"
-                            : "border-white/10 bg-white/[0.03] text-white/70 hover:border-white/18"
+                            : "border-white/10 bg-white/3 text-white/70 hover:border-white/18"
                         }`}
                       >
+                        <span className="mr-1.5">{option.emoji}</span>
                         {option.label}
                       </button>
                     ))}
                   </div>
                 </div>
+
                 <button
                   onClick={handleStart}
                   disabled={!canStart || loading}
@@ -410,7 +500,7 @@ function AgentsPage() {
                     </span>
                   </div>
 
-                  <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_220px]">
+                  <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)]">
                     <input
                       type="text"
                       placeholder="Search by name, role, or expertise..."
@@ -418,17 +508,23 @@ function AgentsPage() {
                       onChange={(e) => setSearchTerm(e.target.value)}
                       className={inputClass}
                     />
-                    <select
-                      value={selectedDomain}
-                      onChange={(e) => setSelectedDomain(e.target.value)}
-                      className={inputClass}
-                    >
-                      {DOMAIN_OPTIONS.map((domain) => (
-                        <option key={domain} value={domain} className="bg-slate-950 text-white">
-                          Domain: {domain}
-                        </option>
-                      ))}
-                    </select>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    {DOMAIN_OPTIONS.map((domain) => (
+                      <button
+                        key={domain}
+                        type="button"
+                        onClick={() => setSelectedDomain(domain)}
+                        className={`rounded-full border px-3 py-1.5 text-xs font-medium transition ${
+                          selectedDomain === domain
+                            ? "border-sky-300/40 bg-sky-300/15 text-sky-100"
+                            : "border-white/10 bg-white/5 text-white/60 hover:border-white/20 hover:bg-white/8"
+                        }`}
+                      >
+                        {domain}
+                      </button>
+                    ))}
                   </div>
 
                   {filteredAgents.length > 0 ? (
@@ -464,6 +560,46 @@ function AgentsPage() {
                   </div>
 
                   <div className="rounded-[1.25rem] border border-white/8 bg-[#0b0b0d] p-4">
+                    <label className="mb-3 block text-sm font-medium text-white/70">
+                      Agent Region Scope
+                    </label>
+                    <div className="mb-4 inline-flex rounded-lg border border-white/10 bg-white/5 p-1">
+                      {[
+                        { id: "global", label: "Global - Worldwide experts" },
+                        { id: "current_location", label: `Current Location${userLocation.loading ? " (loading...)" : userLocation.city ? ` - ${userLocation.city}${userLocation.state ? `, ${userLocation.state}` : ""}, ${userLocation.country}` : ""}` },
+                        { id: "country", label: "Specific Country" },
+                      ].map((option, index) => (
+                        <button
+                          key={option.id}
+                          onClick={() => setScopeMode(option.id)}
+                          className={`px-4 py-2 text-sm font-medium transition ${
+                            index !== 0 ? "border-l border-white/10" : ""
+                          } ${
+                            scopeMode === option.id
+                              ? "bg-sky-400/20 text-sky-100"
+                              : "text-white/70 hover:text-white/90"
+                          }`}
+                        >
+                          <span className="block leading-tight">{option.id === "current_location" ? (userLocation.loading ? "Loading..." : `${userLocation.city}, ${userLocation.country}`) : option.label.split(" - ")[0]}</span>
+                          {scopeMode === option.id && (
+                            <span className="mt-0.5 block text-[10px] font-semibold uppercase tracking-[0.1em] text-sky-200">
+                              Selected
+                            </span>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                    
+                    {scopeMode === "country" && (
+                      <input
+                        type="text"
+                        value={scopeCountry}
+                        onChange={(e) => setScopeCountry(e.target.value)}
+                        placeholder="e.g., India, Japan, USA"
+                        className={`${inputClass} mb-4`}
+                      />
+                    )}
+
                     <label className="mb-2 block text-sm font-medium text-white/70">
                       Generation Instructions (optional)
                     </label>
@@ -538,6 +674,48 @@ function AgentsPage() {
                       </div>
 
                       <div>
+                        <label className="mb-3 block text-sm font-medium text-white/70">
+                          Agent Region Scope
+                        </label>
+                        <div className="mb-4 inline-flex rounded-lg border border-white/10 bg-white/5 p-1">
+                          {[
+                            { id: "global", label: "Global - Worldwide experts" },
+                            { id: "current_location", label: `Current Location${userLocation.loading ? " (loading...)" : userLocation.city ? ` - ${userLocation.city}${userLocation.state ? `, ${userLocation.state}` : ""}, ${userLocation.country}` : ""}` },
+                            { id: "country", label: "Specific Country" },
+                          ].map((option, index) => (
+                            <button
+                              key={option.id}
+                              onClick={() => setScopeMode(option.id)}
+                              className={`px-4 py-2 text-sm font-medium transition ${
+                                index !== 0 ? "border-l border-white/10" : ""
+                              } ${
+                                scopeMode === option.id
+                                  ? "bg-sky-400/20 text-sky-100"
+                                  : "text-white/70 hover:text-white/90"
+                              }`}
+                            >
+                              <span className="block leading-tight">{option.id === "current_location" ? (userLocation.loading ? "Loading..." : `${userLocation.city}, ${userLocation.country}`) : option.label.split(" - ")[0]}</span>
+                              {scopeMode === option.id && (
+                                <span className="mt-0.5 block text-[10px] font-semibold uppercase tracking-[0.1em] text-sky-200">
+                                  Selected
+                                </span>
+                              )}
+                            </button>
+                          ))}
+                        </div>
+                        
+                        {scopeMode === "country" && (
+                          <input
+                            type="text"
+                            value={scopeCountry}
+                            onChange={(e) => setScopeCountry(e.target.value)}
+                            placeholder="e.g., India, Japan, USA"
+                            className={`${inputClass} mb-4`}
+                          />
+                        )}
+                      </div>
+
+                      <div>
                         <label className="mb-2 block text-sm font-medium text-white/70">
                           Context Instructions (optional)
                         </label>
@@ -580,37 +758,6 @@ function AgentsPage() {
               </section>
             )}
 
-            {savedDrafts.length > 0 && (
-              <section className={`${panelClass} p-5 sm:p-6`}>
-                <div className="flex flex-col gap-5">
-                  <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-                    <div>
-                      <h3 className="text-xl font-semibold text-white">
-                        Saved agents
-                      </h3>
-                      <p className="mt-1 text-sm text-white/58">
-                        Newly added agents are now part of your roster for this
-                        session.
-                      </p>
-                    </div>
-                    <span className="text-sm text-white/45">
-                      {savedDrafts.length} saved
-                    </span>
-                  </div>
-
-                  <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
-                    {savedDrafts.map((agent) => (
-                      <AgentCard
-                        key={agent.id}
-                        agent={agent}
-                        selected={setup.agentIds.includes(agent.id)}
-                        onToggle={() => toggleAgent(agent.id)}
-                      />
-                    ))}
-                  </div>
-                </div>
-              </section>
-            )}
           </main>
         </div>
       </div>

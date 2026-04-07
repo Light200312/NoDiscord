@@ -7,6 +7,7 @@ import {
   createAgent,
   findOrDraftAgentByName,
   getSession,
+  listDebateHistory,
   listAgents,
   postUserMessage,
   seedAgents,
@@ -129,8 +130,12 @@ app.post("/api/session/start", async (req, res) => {
   }
 });
 
-app.get("/api/session/:sessionId", (req, res) => {
-  const session = getSession(req.params.sessionId);
+app.get("/api/history", async (_req, res) => {
+  res.json({ discussions: await listDebateHistory() });
+});
+
+app.get("/api/session/:sessionId", async (req, res) => {
+  const session = await getSession(req.params.sessionId);
   if (!session) {
     return res.status(404).json({ message: "Session not found." });
   }
@@ -140,7 +145,7 @@ app.get("/api/session/:sessionId", (req, res) => {
 app.post("/api/session/:sessionId/message", async (req, res) => {
   try {
     const result = await postUserMessage(req.params.sessionId, req.body?.text);
-    res.json(result);
+    res.json({ session: result.session, mentorMessage: result.mentorMessage });
   } catch (error) {
     const status = error.message === "Session not found." ? 404 : 400;
     res.status(status).json({ message: error.message });
@@ -150,16 +155,16 @@ app.post("/api/session/:sessionId/message", async (req, res) => {
 app.post("/api/session/:sessionId/auto-step", async (req, res) => {
   try {
     const result = await autoStepSession(req.params.sessionId);
-    res.json(result);
+    res.json({ session: result.session, mentorMessage: result.mentorMessage });
   } catch (error) {
     const status = error.message === "Session not found." ? 404 : 400;
     res.status(status).json({ message: error.message });
   }
 });
 
-app.post("/api/session/:sessionId/stop", (req, res) => {
+app.post("/api/session/:sessionId/stop", async (req, res) => {
   try {
-    const session = stopSession(req.params.sessionId);
+    const session = await stopSession(req.params.sessionId);
     res.json({ session });
   } catch (error) {
     const status = error.message === "Session not found." ? 404 : 400;

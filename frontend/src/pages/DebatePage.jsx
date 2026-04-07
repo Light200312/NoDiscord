@@ -36,6 +36,9 @@ export function DebatePage() {
   const agents = useStore((s) => s.agents);
   const loading = useStore((s) => s.loading);
   const session = useStore((s) => s.session);
+  const settings = useStore((s) => s.settings);
+  const setSettings = useStore((s) => s.setSettings);
+  const loadAgents = useStore((s) => s.loadAgents);
   const refreshSession = useStore((s) => s.refreshSession);
   const sendMessage = useStore((s) => s.sendMessage);
   const autoStep = useStore((s) => s.autoStep);
@@ -43,8 +46,7 @@ export function DebatePage() {
   const restartSession = useStore((s) => s.restartSession);
 
   const [messageText, setMessageText] = useState("");
-  const [autoLoopEnabled, setAutoLoopEnabled] = useState(false);
-  const [selectedVoice, setSelectedVoice] = useState(VOICE_OPTIONS[1]);
+  const [selectedVoice, setSelectedVoice] = useState("Google Indian English Female");
   const [speakingId, setSpeakingId] = useState(null);
   const [showAgentInfo, setShowAgentInfo] = useState(null);
   const [isAgentPanelOpen, setIsAgentPanelOpen] = useState(false);
@@ -56,14 +58,15 @@ export function DebatePage() {
   const audioQueueRef = useRef([]);
   const lastSpokenIndexRef = useRef(-1);
   const synth = useRef(window.speechSynthesis);
-  const mediaRecorderRef = useRef(null);
-  const audioChunksRef = useRef([]);
+  const autoLoopTimerRef = useRef(null);
+  const autoLoopInFlightRef = useRef(false);
+  const recognitionRef = useRef(null);
   const currentUtteranceRef = useRef(null);
 
-  const playAudioQueue = () => {
+  const playAudioQueue = (forcePlay = false) => {
     if (isSpeaking) return;
     if (audioQueueRef.current.length === 0) return;
-
+    if (!settings.audioAutoSpeak && !forcePlay) return;
     setIsSpeaking(true);
     const messageId = audioQueueRef.current.shift();
     setSpeakingId(messageId);
@@ -120,6 +123,14 @@ export function DebatePage() {
   }, [session?.id, refreshSession]);
 
   useEffect(() => {
+    loadAgents();
+  }, [loadAgents]);
+
+  useEffect(() => {
+    setSelectedVoice(settings.languageMode === "hinglish" ? "Google Indian English Male" : "Google Indian English Female");
+  }, [settings.languageMode]);
+
+  useEffect(() => {
     if (messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
@@ -134,14 +145,15 @@ export function DebatePage() {
       }
     });
 
-    if (audioQueueRef.current.length > 0 && !isSpeaking) {
+    if (settings.audioAutoSpeak && audioQueueRef.current.length > 0 && !isSpeaking) {
       setTimeout(() => playAudioQueue(), 0);
     }
-  }, [session?.messages, isSpeaking]);
+  }, [session?.messages, isSpeaking, settings.audioAutoSpeak]);
 
   useEffect(() => {
-    if (!autoLoopEnabled || !session || session.closed) {
-      setAutoLoopEnabled(false);
+    if (autoLoopTimerRef.current) clearTimeout(autoLoopTimerRef.current);
+    if (!settings.autoLoopEnabled || !session || session.closed || loading || isSpeaking) {
+      autoLoopInFlightRef.current = false;
       return;
     }
 
@@ -149,17 +161,23 @@ export function DebatePage() {
       (m) => m.type === "mentor" || m.type === "user"
     );
     if (turnMessages.length >= (session.maxArguments || 25)) {
-      setAutoLoopEnabled(false);
       return;
     }
 
-    if (!isSpeaking && audioQueueRef.current.length === 0) {
-      const timer = setTimeout(() => {
-        autoStep();
-      }, 800);
-      return () => clearTimeout(timer);
+    if (!isSpeaking && audioQueueRef.current.length === 0 && !autoLoopInFlightRef.current) {
+      autoLoopTimerRef.current = setTimeout(async () => {
+        autoLoopInFlightRef.current = true;
+        try {
+          await autoStep();
+        } finally {
+          autoLoopInFlightRef.current = false;
+        }
+      }, 1200);
     }
-  }, [autoLoopEnabled, session?.messages?.length, session?.closed, isSpeaking, autoStep]);
+    return () => {
+      if (autoLoopTimerRef.current) clearTimeout(autoLoopTimerRef.current);
+    };
+  }, [settings.autoLoopEnabled, session?.messages?.length, session?.closed, isSpeaking, loading, autoStep]);
 
   const selectedAgents = (session?.agentIds || [])
     .map((id) => agents.find((a) => a.id === id))
@@ -182,7 +200,7 @@ export function DebatePage() {
   const handlePlayAudio = (messageId) => {
     if (!audioQueueRef.current.includes(messageId)) {
       audioQueueRef.current.push(messageId);
-      playAudioQueue();
+      playAudioQueue(true);
     }
   };
 
@@ -197,35 +215,43 @@ export function DebatePage() {
   };
 
   const handleStartRecording = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream);
-      mediaRecorderRef.current = mediaRecorder;
-      audioChunksRef.current = [];
-
-      mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          audioChunksRef.current.push(event.data);
-        }
-      };
-
-      mediaRecorder.onstop = async () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: "audio/wav" });
-        console.log("Recording saved:", audioBlob);
-      };
-
-      mediaRecorder.start();
-      setIsRecording(true);
-    } catch (error) {
-      console.error("Error accessing microphone:", error);
-      alert("Microphone access denied or not available");
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert("Speech recognition is not available in this browser.");
+      return;
     }
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = settings.languageMode === "hinglish" ? "hi-IN" : "en-IN";
+    recognition.interimResults = true;
+    recognition.continuous = false;
+
+    recognition.onresult = (event) => {
+      const transcript = Array.from(event.results)
+        .map((result) => result[0]?.transcript || "")
+        .join(" ")
+        .trim();
+      setMessageText(transcript);
+    };
+
+    recognition.onend = () => {
+      setIsRecording(false);
+      recognitionRef.current = null;
+    };
+
+    recognition.onerror = () => {
+      setIsRecording(false);
+      recognitionRef.current = null;
+    };
+
+    recognitionRef.current = recognition;
+    recognition.start();
+    setIsRecording(true);
   };
 
   const handleStopRecording = () => {
-    if (mediaRecorderRef.current && isRecording) {
-      mediaRecorderRef.current.stop();
-      mediaRecorderRef.current.stream.getTracks().forEach((track) => track.stop());
+    if (recognitionRef.current && isRecording) {
+      recognitionRef.current.stop();
       setIsRecording(false);
     }
   };
@@ -390,11 +416,30 @@ export function DebatePage() {
                       <label className="inline-flex items-center gap-1.5 rounded-full border border-slate-700 bg-slate-900 px-3 py-1 text-xs text-slate-300">
                         <input
                           type="checkbox"
-                          checked={autoLoopEnabled}
-                          onChange={(e) => setAutoLoopEnabled(e.target.checked)}
+                          checked={settings.autoLoopEnabled}
+                          onChange={(e) => setSettings({ autoLoopEnabled: e.target.checked })}
                           className="h-3.5 w-3.5 accent-blue-500"
                         />
                         Auto loop
+                      </label>
+
+                      <select
+                        value={settings.languageMode}
+                        onChange={(e) => setSettings({ languageMode: e.target.value })}
+                        className="rounded-full border border-slate-700 bg-slate-900 px-3 py-1 text-xs text-slate-100 outline-none transition focus:border-blue-400"
+                      >
+                        <option value="english_in">English (IN)</option>
+                        <option value="hinglish">Hinglish</option>
+                      </select>
+
+                      <label className="inline-flex items-center gap-1.5 rounded-full border border-slate-700 bg-slate-900 px-3 py-1 text-xs text-slate-300">
+                        <input
+                          type="checkbox"
+                          checked={settings.audioAutoSpeak}
+                          onChange={(e) => setSettings({ audioAutoSpeak: e.target.checked })}
+                          className="h-3.5 w-3.5 accent-blue-500"
+                        />
+                        Auto speak
                       </label>
 
                       <button
@@ -450,11 +495,11 @@ export function DebatePage() {
                 {session.topic}
               </h1> */}
 
-              <div className="mt-4 grid grid-cols-2 gap-2">
-                <div className="rounded-[18px] border border-slate-800 bg-slate-950/70 px-3 py-2">
-                  <p className="text-[10px] uppercase tracking-[0.22em] text-slate-500">Mood</p>
-                  <p className="mt-1.5 text-xs font-semibold capitalize text-slate-100">{session.mood}</p>
-                </div>
+                <div className="mt-4 grid grid-cols-2 gap-2">
+                  <div className="rounded-[18px] border border-slate-800 bg-slate-950/70 px-3 py-2">
+                    <p className="text-[10px] uppercase tracking-[0.22em] text-slate-500">Mood</p>
+                    <p className="mt-1.5 text-xs font-semibold capitalize text-slate-100">{session.mood}</p>
+                  </div>
                 <div className="rounded-[18px] border border-slate-800 bg-slate-950/70 px-3 py-2">
                   <p className="text-[10px] uppercase tracking-[0.22em] text-slate-500">Experts</p>
                   <p className="mt-1.5 text-xs font-semibold text-slate-100">{selectedAgents.length}</p>
@@ -469,6 +514,16 @@ export function DebatePage() {
                   <p className="text-[10px] uppercase tracking-[0.22em] text-slate-500">Status</p>
                   <p className={`mt-1.5 text-xs font-semibold ${session.closed ? "text-rose-300" : "text-emerald-300"}`}>
                     {session.closed ? "Debate Ended" : "Debate Active"}
+                  </p>
+                </div>
+                <div className="rounded-[18px] border border-slate-800 bg-slate-950/70 px-3 py-2">
+                  <p className="text-[10px] uppercase tracking-[0.22em] text-slate-500">Flow</p>
+                  <p className="mt-1.5 text-xs font-semibold text-slate-100">{session.orchestrationMode || settings.orchestrationMode}</p>
+                </div>
+                <div className="rounded-[18px] border border-slate-800 bg-slate-950/70 px-3 py-2">
+                  <p className="text-[10px] uppercase tracking-[0.22em] text-slate-500">Language</p>
+                  <p className="mt-1.5 text-xs font-semibold text-slate-100">
+                    {session.languageMode === "hinglish" || settings.languageMode === "hinglish" ? "Hinglish" : "English (IN)"}
                   </p>
                 </div>
               </div>
