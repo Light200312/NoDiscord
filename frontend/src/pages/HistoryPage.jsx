@@ -71,6 +71,9 @@ function HistoryPage() {
                   <p className="mt-3 text-sm text-slate-300">
                     Orchestration: {entry.settings?.orchestrationMode || "dynamic"} • Memory: {entry.settings?.memoryMode || "minimal"}
                   </p>
+                  <p className="mt-2 text-xs text-slate-400">
+                    Source: {entry.sourceType === "feature" ? `Feature • ${entry.sourceLabel || entry.sourceFeature}` : "Debate"}
+                  </p>
                 </button>
               ))}
             </div>

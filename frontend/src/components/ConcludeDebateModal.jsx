@@ -277,6 +277,11 @@ function ConcludeDebateModal({ isOpen, onClose, topic, sessionId, messages, part
                 ? "AI-generated draft ready."
                 : "Using fallback draft from debate messages."}
             </p>
+            {llmReport?.savedConclusionId ? (
+              <p className="mt-1 text-xs text-emerald-300">
+                Saved to MongoDB • {llmReport.sourceType === "feature" ? `Feature: ${llmReport.sourceLabel || llmReport.sourceFeature}` : "Source: Debate"}
+              </p>
+            ) : null}
             {draftError ? <p className="mt-1 text-xs text-amber-300">{draftError}</p> : null}
           </div>
           <button

@@ -8,6 +8,7 @@ import {
   findOrDraftAgentByName,
   generateSessionReport,
   getSession,
+  listConclusions,
   listDebateHistory,
   listAgents,
   postUserMessage,
@@ -184,6 +185,15 @@ app.post("/api/session/:sessionId/report", async (req, res) => {
   } catch (error) {
     const status = error.message === "Session not found." ? 404 : 400;
     res.status(status).json({ message: error.message });
+  }
+});
+
+app.get("/api/conclusions", async (req, res) => {
+  try {
+    const conclusions = await listConclusions(req.query || {});
+    res.json({ conclusions });
+  } catch (error) {
+    res.status(400).json({ message: error.message });
   }
 });
 

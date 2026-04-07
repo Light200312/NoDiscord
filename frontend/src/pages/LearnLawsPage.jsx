@@ -82,6 +82,9 @@ const LearnLawsPage = () => {
       await startSession({
         topic: lawTopic,
         agents: selectedAgents,
+        sourceType: 'feature',
+        sourceFeature: 'learn-laws',
+        sourceLabel: 'Learn Indian Laws',
       })
 
       navigate('/debate')

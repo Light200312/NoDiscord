@@ -1,5 +1,23 @@
 import mongoose from "mongoose";
 
+const AGENT_CATEGORIES = [
+  "politics",
+  "government",
+  "entrepreneur",
+  "tech",
+  "education",
+  "health",
+  "ai",
+  "scientist",
+  "historian",
+  "finance",
+  "engineering",
+  "research",
+  "law",
+  "general",
+  "other",
+];
+
 const agentSchema = new mongoose.Schema(
   {
     id: { type: String, required: true, unique: true, trim: true },
@@ -19,6 +37,12 @@ const agentSchema = new mongoose.Schema(
     speechStyle: { type: String, trim: true, default: "" },
     openingAngle: { type: String, trim: true, default: "" },
     domain: { type: String, trim: true, default: "other" },
+    category: {
+      type: String,
+      trim: true,
+      enum: AGENT_CATEGORIES,
+      default: "other",
+    },
     specialAbility: { type: String, required: true, trim: true },
     avatarInitials: { type: String, required: true, trim: true },
     imageUrl: { type: String, trim: true, default: "" },
@@ -37,3 +61,4 @@ const agentSchema = new mongoose.Schema(
 const Agent = mongoose.models.MinimalAgent || mongoose.model("MinimalAgent", agentSchema);
 
 export default Agent;
+export { AGENT_CATEGORIES };

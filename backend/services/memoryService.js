@@ -164,7 +164,7 @@ async function updateTopicMemory({ topic, sessionId = "", messages = [], memoryM
         messageCount: Number(existing?.messageCount || 0) + pending.length,
       },
     },
-    { upsert: true, new: true }
+    { upsert: true, returnDocument: "after" }
   ).lean();
 
   return { memory, updated: true };

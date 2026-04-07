@@ -12,15 +12,22 @@ const TEMPERATURE_OPTIONS = [
   { value: "reflective", label: "Reflective", emoji: "\u{1F33F}" },
 ];
 
-const DOMAIN_OPTIONS = [
-  "All",
-  "Technical",
-  "Politics",
-  "Education",
-  "Finance",
-  "Research",
-  "Engineering",
-  "General",
+const AGENT_CATEGORY_OPTIONS = [
+  "politics",
+  "government",
+  "entrepreneur",
+  "tech",
+  "education",
+  "health",
+  "ai",
+  "scientist",
+  "historian",
+  "finance",
+  "engineering",
+  "research",
+  "law",
+  "general",
+  "other",
 ];
 
 const sectionLabelClass =
@@ -32,15 +39,174 @@ const panelClass =
 const inputClass =
   "w-full rounded-xl border border-white/10 bg-[#0c0c0f] px-4 py-3 text-sm text-white placeholder:text-white/30 transition focus:border-sky-300/35 focus:outline-none focus:ring-2 focus:ring-sky-300/15";
 
-function AgentCard({ agent, selected, onToggle }) {
+function formatCategoryLabel(category = "") {
+  const value = String(category || "").trim().toLowerCase();
+  if (!value) return "Other";
+  if (value === "ai") return "AI";
+  return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
+function AgentDetailsModal({ agent, onClose, onToggle, selected, justification }) {
+  if (!agent) return null;
+
+  const statItems = [
+    { label: "Logic", value: agent.stats?.logic },
+    { label: "Rhetoric", value: agent.stats?.rhetoric },
+    { label: "Bias", value: agent.stats?.bias },
+  ].filter((item) => Number.isFinite(Number(item.value)));
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/65 p-4 backdrop-blur-sm">
+      <div className="relative max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-[2rem] border border-white/10 bg-[#0c0c0f]/95 shadow-2xl">
+        <div className="sticky top-0 border-b border-white/8 bg-[#0c0c0f] px-6 py-4 sm:px-8">
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <p className={sectionLabelClass}>Agent Details</p>
+              <h2 className="mt-2 text-2xl font-black tracking-[-0.04em] text-white">
+                {agent.name}
+              </h2>
+              <p className="mt-1 text-sm text-white/60">{agent.role}</p>
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-lg border border-white/10 bg-white/5 p-2 text-white/60 transition hover:bg-white/10 hover:text-white"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+
+        <div className="space-y-6 px-6 py-6 sm:px-8">
+          <div className="flex flex-wrap gap-2">
+            {agent.domain && (
+              <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[0.65rem] font-medium uppercase tracking-[0.18em] text-white/55">
+                {agent.domain}
+              </span>
+            )}
+            {agent.category && (
+              <span className="rounded-full border border-sky-300/15 bg-sky-300/10 px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-sky-100">
+                {formatCategoryLabel(agent.category)}
+              </span>
+            )}
+            {agent.era && (
+              <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-[0.65rem] font-medium uppercase tracking-[0.18em] text-white/55">
+                {agent.era}
+              </span>
+            )}
+            {agent.createdFrom && (
+              <span className="rounded-full border border-emerald-300/15 bg-emerald-300/10 px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-emerald-100">
+                {agent.createdFrom === "ai_suggest" ? "Generated" : agent.createdFrom}
+              </span>
+            )}
+          </div>
+
+          {justification && (
+            <section className="rounded-2xl border border-white/8 bg-white/[0.03] px-4 py-4">
+              <h3 className="text-sm font-semibold text-white">Why this agent was generated</h3>
+              <p className="mt-2 text-sm leading-6 text-white/62">{justification}</p>
+            </section>
+          )}
+
+          <section className="rounded-2xl border border-white/8 bg-white/[0.03] px-4 py-4">
+            <h3 className="text-sm font-semibold text-white">Description</h3>
+            <p className="mt-2 text-sm leading-7 text-white/68">{agent.description || "No description available."}</p>
+          </section>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <section className="rounded-2xl border border-white/8 bg-white/[0.03] px-4 py-4">
+              <h3 className="text-sm font-semibold text-white">Expertise</h3>
+              <p className="mt-2 text-sm leading-7 text-white/68">{agent.expertise || "Not specified."}</p>
+            </section>
+            <section className="rounded-2xl border border-white/8 bg-white/[0.03] px-4 py-4">
+              <h3 className="text-sm font-semibold text-white">Stance</h3>
+              <p className="mt-2 text-sm leading-7 text-white/68">{agent.stance || "Not specified."}</p>
+            </section>
+            <section className="rounded-2xl border border-white/8 bg-white/[0.03] px-4 py-4">
+              <h3 className="text-sm font-semibold text-white">Speech Style</h3>
+              <p className="mt-2 text-sm leading-7 text-white/68">{agent.speechStyle || "Not specified."}</p>
+            </section>
+            <section className="rounded-2xl border border-white/8 bg-white/[0.03] px-4 py-4">
+              <h3 className="text-sm font-semibold text-white">Opening Angle</h3>
+              <p className="mt-2 text-sm leading-7 text-white/68">{agent.openingAngle || "Not specified."}</p>
+            </section>
+          </div>
+
+          {statItems.length > 0 && (
+            <section className="rounded-2xl border border-white/8 bg-white/[0.03] px-4 py-4">
+              <h3 className="text-sm font-semibold text-white">Debate Stats</h3>
+              <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                {statItems.map((item) => (
+                  <div key={item.label} className="rounded-xl border border-white/8 bg-[#0c0c0f] px-4 py-3">
+                    <p className="text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-white/38">
+                      {item.label}
+                    </p>
+                    <p className="mt-2 text-lg font-semibold text-white">{item.value}</p>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {Array.isArray(agent.tags) && agent.tags.length > 0 && (
+            <section className="rounded-2xl border border-white/8 bg-white/[0.03] px-4 py-4">
+              <h3 className="text-sm font-semibold text-white">Tags</h3>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {agent.tags.map((tag) => (
+                  <span
+                    key={tag}
+                    className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs text-white/60"
+                  >
+                    {tag}
+                  </span>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {agent.backstoryLore && (
+            <section className="rounded-2xl border border-white/8 bg-white/[0.03] px-4 py-4">
+              <h3 className="text-sm font-semibold text-white">Backstory</h3>
+              <p className="mt-2 text-sm leading-7 text-white/68">{agent.backstoryLore}</p>
+            </section>
+          )}
+        </div>
+
+        <div className="border-t border-white/8 bg-white/[0.02] px-6 py-4 sm:px-8">
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
+            >
+              Close
+            </button>
+            <button
+              type="button"
+              onClick={() => onToggle(agent.id)}
+              className={`flex-1 rounded-xl border px-4 py-3 text-sm font-semibold transition ${
+                selected
+                  ? "border-amber-300/25 bg-amber-300/12 text-amber-100"
+                  : "border-sky-300/22 bg-sky-300/12 text-sky-50 hover:border-sky-300/34 hover:bg-sky-300/16"
+              }`}
+            >
+              {selected ? "Remove from Debate" : "Select for Debate"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AgentCard({ agent, selected, onToggle, onOpenDetails }) {
   return (
     <div
-      className={`${panelClass} cursor-pointer p-4 transition duration-200 ${
+      className={`${panelClass} p-4 transition duration-200 ${
         selected
           ? "border-amber-300/35 bg-amber-300/[0.08]"
           : "hover:border-white/18 hover:bg-white/[0.055]"
       }`}
-      onClick={onToggle}
     >
       <div className="flex items-start gap-3">
         <div
@@ -70,31 +236,58 @@ function AgentCard({ agent, selected, onToggle }) {
             <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[0.65rem] font-medium uppercase tracking-[0.18em] text-white/45">
               {agent.domain}
             </span>
+            {agent.category && (
+              <span className="rounded-full border border-sky-300/15 bg-sky-300/10 px-2.5 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-sky-100">
+                {formatCategoryLabel(agent.category)}
+              </span>
+            )}
           </div>
         </div>
       </div>
 
       <p className="mt-4 text-sm leading-6 text-white/62">{agent.description}</p>
 
-      <button
-        type="button"
-        className={`mt-4 w-full rounded-xl border px-3 py-2.5 text-sm font-medium transition ${
+      <div className="mt-4 grid gap-2 sm:grid-cols-2">
+        <button
+          type="button"
+          onClick={() => onOpenDetails(agent)}
+          className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2.5 text-sm font-medium text-white/78 transition hover:border-white/20 hover:bg-white/[0.07]"
+        >
+          View Details
+        </button>
+        <button
+          type="button"
+          onClick={() => onToggle(agent.id)}
+          className={`rounded-xl border px-3 py-2.5 text-sm font-medium transition ${
           selected
             ? "border-amber-300/25 bg-amber-300/12 text-amber-100"
             : "border-white/10 bg-white/[0.04] text-white/72"
-        }`}
-      >
-        {selected ? "Selected" : "Select"}
-      </button>
+          }`}
+        >
+          {selected ? "Selected" : "Select"}
+        </button>
+      </div>
     </div>
   );
 }
 
-function SuggestedAgentCard({ agent, justification, onAdd }) {
+function GeneratedAgentCard({ agent, justification, selected, onToggle, onOpenDetails }) {
   return (
-    <div className={`${panelClass} p-4 transition duration-200 hover:border-white/16`}>
+    <div
+      className={`${panelClass} p-4 transition duration-200 ${
+        selected
+          ? "border-amber-300/35 bg-amber-300/[0.08]"
+          : "hover:border-white/16 hover:bg-white/[0.055]"
+      }`}
+    >
       <div className="flex items-start gap-3">
-        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-sky-300/15 bg-sky-300/10 text-sm font-bold text-sky-100">
+        <div
+          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border text-sm font-bold ${
+            selected
+              ? "border-amber-300/20 bg-amber-300/15 text-amber-100"
+              : "border-sky-300/15 bg-sky-300/10 text-sky-100"
+          }`}
+        >
           {agent.initials || agent.name.split(" ").slice(0, 2).map((w) => w[0]).join("")}
         </div>
 
@@ -104,11 +297,26 @@ function SuggestedAgentCard({ agent, justification, onAdd }) {
               <h3 className="truncate text-base font-semibold text-white">{agent.name}</h3>
               <p className="mt-1 text-sm text-white/60">{agent.role}</p>
             </div>
-            {agent.domain && (
-              <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[0.65rem] font-medium uppercase tracking-[0.18em] text-white/45">
-                {agent.domain}
-              </span>
-            )}
+            <div className="flex flex-wrap justify-end gap-2">
+              {agent.domain && (
+                <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[0.65rem] font-medium uppercase tracking-[0.18em] text-white/45">
+                  {agent.domain}
+                </span>
+              )}
+              {agent.category && (
+                <span className="rounded-full border border-sky-300/15 bg-sky-300/10 px-2.5 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-sky-100">
+                  {formatCategoryLabel(agent.category)}
+                </span>
+              )}
+            </div>
+          </div>
+          <div className="mt-3 flex items-center gap-2">
+            <span className="rounded-full border border-emerald-300/15 bg-emerald-300/10 px-2.5 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-emerald-100">
+              Generated
+            </span>
+            <span
+              className={`h-2.5 w-2.5 rounded-full ${selected ? "bg-amber-300" : "bg-white/15"}`}
+            />
           </div>
         </div>
       </div>
@@ -121,12 +329,26 @@ function SuggestedAgentCard({ agent, justification, onAdd }) {
 
       <p className="mt-4 text-sm leading-6 text-white/62">{agent.description}</p>
 
-      <button
-        onClick={() => onAdd(agent)}
-        className="mt-4 w-full rounded-xl border border-sky-300/18 bg-sky-300/10 px-3 py-2.5 text-sm font-medium text-sky-50 transition hover:border-sky-300/30 hover:bg-sky-300/14"
-      >
-        Add to Roster
-      </button>
+      <div className="mt-4 grid gap-2 sm:grid-cols-2">
+        <button
+          type="button"
+          onClick={() => onOpenDetails(agent, justification)}
+          className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2.5 text-sm font-medium text-white/78 transition hover:border-white/20 hover:bg-white/[0.07]"
+        >
+          View Details
+        </button>
+        <button
+          type="button"
+          onClick={() => onToggle(agent.id)}
+          className={`rounded-xl border px-3 py-2.5 text-sm font-medium transition ${
+          selected
+            ? "border-amber-300/25 bg-amber-300/12 text-amber-100"
+            : "border-sky-300/18 bg-sky-300/10 text-sky-50 hover:border-sky-300/30 hover:bg-sky-300/14"
+          }`}
+        >
+          {selected ? "Selected for Debate" : "Select for Debate"}
+        </button>
+      </div>
     </div>
   );
 }
@@ -150,11 +372,12 @@ function AgentsPage() {
   const [generationInstructions, setGenerationInstructions] = useState("");
   const [specificAgentName, setSpecificAgentName] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedDomain, setSelectedDomain] = useState("All");
+  const [selectedCategory, setSelectedCategory] = useState("All");
   const [suggestedAgents, setSuggestedAgents] = useState([]);
   const [isSuggesting, setIsSuggesting] = useState(false);
   const [scopeMode, setScopeMode] = useState("global");
   const [scopeCountry, setScopeCountry] = useState("");
+  const [activeAgentDetails, setActiveAgentDetails] = useState(null);
   const [userLocation, setUserLocation] = useState({
     country: "Your Country",
     state: "",
@@ -166,10 +389,10 @@ function AgentsPage() {
     if (!drafts.length) return drafts;
     const saved = [];
     for (const draft of drafts) {
-      const agent = await createAgent(draft, { selectAfterCreate: true });
+      const agent = await createAgent(draft, { selectAfterCreate: false });
       saved.push(agent);
     }
-    return [];
+    return saved;
   };
 
   useEffect(() => {
@@ -214,15 +437,33 @@ function AgentsPage() {
   }, []);
 
   const filteredAgents = agents.filter((agent) => {
-    const matchesDomain =
-      selectedDomain === "All" || agent.domain === selectedDomain;
+    const agentCategory = String(agent.category || "other").trim().toLowerCase();
+    const matchesCategory =
+      selectedCategory === "All" || agentCategory === selectedCategory.toLowerCase();
     const matchesSearch =
       !searchTerm ||
       agent.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       agent.role.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      String(agent.expertise || "").toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesDomain && matchesSearch;
+      String(agent.expertise || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+      String(agent.domain || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+      agentCategory.includes(searchTerm.toLowerCase());
+    return matchesCategory && matchesSearch;
   });
+  const selectedAgents = setup.agentIds
+    .map((id) => agents.find((agent) => agent.id === id))
+    .filter(Boolean);
+  const availableCategoryOptions = [
+    "All",
+    ...AGENT_CATEGORY_OPTIONS.filter((category) =>
+      agents.some((agent) => String(agent.category || "other").trim().toLowerCase() === category)
+    ),
+  ];
+
+  useEffect(() => {
+    if (selectedCategory !== "All" && !availableCategoryOptions.includes(selectedCategory)) {
+      setSelectedCategory("All");
+    }
+  }, [availableCategoryOptions, selectedCategory]);
 
   function toggleAgent(agentId) {
     setSetup((current) => {
@@ -234,6 +475,10 @@ function AgentsPage() {
           : [...current.agentIds, agentId],
       };
     });
+  }
+
+  function openAgentDetails(agent, justification = "") {
+    setActiveAgentDetails({ agent, justification });
   }
 
   const handleSuggestAgents = async () => {
@@ -264,8 +509,14 @@ function AgentsPage() {
         justification: item.justification,
         tempId: `draft-${Date.now()}-${idx}`,
       }));
-      const unsavedDrafts = await persistDraftsIfNeeded(drafted);
-      setSuggestedAgents(unsavedDrafts);
+      const savedAgents = await persistDraftsIfNeeded(drafted);
+      setSuggestedAgents(
+        savedAgents.map((agent, idx) => ({
+          ...agent,
+          justification: drafted[idx]?.justification || "",
+          tempId: drafted[idx]?.tempId || agent.id,
+        }))
+      );
     } catch (error) {
       alert("Failed to generate agents: " + error.message);
     } finally {
@@ -297,21 +548,18 @@ function AgentsPage() {
 
       const result = await findAgentByName(payload);
       const drafts = [{ ...result.draft, tempId: `draft-${Date.now()}` }];
-      const unsavedDrafts = await persistDraftsIfNeeded(drafts);
-      setSuggestedAgents(unsavedDrafts);
+      const savedAgents = await persistDraftsIfNeeded(drafts);
+      setSuggestedAgents(
+        savedAgents.map((agent, idx) => ({
+          ...agent,
+          justification: drafts[idx]?.justification || "",
+          tempId: drafts[idx]?.tempId || agent.id,
+        }))
+      );
     } catch (error) {
       alert("Failed to create agent: " + error.message);
     } finally {
       setIsSuggesting(false);
-    }
-  };
-
-  const handleAddDraft = async (draftAgent) => {
-    try {
-      const newAgent = await createAgent(draftAgent, { selectAfterCreate: true });
-      setSuggestedAgents(suggestedAgents.filter((s) => s.tempId !== draftAgent.tempId));
-    } catch (error) {
-      alert("Failed to save agent: " + error.message);
     }
   };
 
@@ -391,60 +639,131 @@ function AgentsPage() {
 
         <div className="grid gap-6 xl:grid-cols-[320px,minmax(0,1fr)]">
           <aside className="xl:sticky xl:top-6 xl:self-start">
-            <div className={`${panelClass} p-5 sm:p-6`}>
-              <div>
-                <p className={sectionLabelClass}>Session Details</p>
-                <h2
-                  className="mt-3 text-2xl font-black tracking-[-0.04em] text-white"
-                  style={{ fontFamily: '"Bahnschrift", "Aptos", "Segoe UI", sans-serif' }}
-                >
-                  Debate Configuration
-                </h2>
+            <div className="space-y-6">
+              <div className={`${panelClass} p-5 sm:p-6`}>
+                <div>
+                  <p className={sectionLabelClass}>Session Details</p>
+                  <h2
+                    className="mt-3 text-2xl font-black tracking-[-0.04em] text-white"
+                    style={{ fontFamily: '"Bahnschrift", "Aptos", "Segoe UI", sans-serif' }}
+                  >
+                    Debate Configuration
+                  </h2>
+                </div>
+
+                <div className="mt-6 space-y-5">
+                  <div>
+                    <label className="mb-2 block text-sm font-medium text-white/70">
+                      Debate Topic *
+                    </label>
+                    <input
+                      type="text"
+                      value={topic}
+                      onChange={(e) => setTopic(e.target.value)}
+                      placeholder="e.g., Should AI replace human teachers?"
+                      className={inputClass}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-5 block text-sm font-medium text-white/70 ">
+                      Debate Temperature
+                    </label>
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                      {TEMPERATURE_OPTIONS.map((option) => (
+                        <button
+                          key={option.value}
+                          onClick={() => setTemperature(option.value)}
+                          className={`rounded-xl border px-3 py-2.5 text-sm font-medium transition ${
+                            temperature === option.value
+                              ? "border-amber-300/30 bg-amber-300/12 text-amber-100"
+                              : "border-white/10 bg-white/3 text-white/70 hover:border-white/18"
+                          }`}
+                        >
+                          <span className="mr-1.5">{option.emoji}</span>
+                          {option.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={handleStart}
+                    disabled={!canStart || loading}
+                    className="w-full rounded-xl border border-white/14 bg-white/10 px-4 py-3 text-sm font-semibold text-white transition hover:border-white/24 hover:bg-white/14 disabled:cursor-not-allowed disabled:opacity-45"
+                  >
+                    {loading ? "Starting..." : "Start Debate"}
+                  </button>
+                </div>
               </div>
 
-              <div className="mt-6 space-y-5">
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-white/70">
-                    Debate Topic *
-                  </label>
-                  <input
-                    type="text"
-                    value={topic}
-                    onChange={(e) => setTopic(e.target.value)}
-                    placeholder="e.g., Should AI replace human teachers?"
-                    className={inputClass}
-                  />
-                </div>
-
-                <div>
-                  <label className="mb-5 block text-sm font-medium text-white/70 ">
-                    Debate Temperature
-                  </label>
-                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                    {TEMPERATURE_OPTIONS.map((option) => (
-                      <button
-                        key={option.value}
-                        onClick={() => setTemperature(option.value)}
-                        className={`rounded-xl border px-3 py-2.5 text-sm font-medium transition ${
-                          temperature === option.value
-                            ? "border-amber-300/30 bg-amber-300/12 text-amber-100"
-                            : "border-white/10 bg-white/3 text-white/70 hover:border-white/18"
-                        }`}
-                      >
-                        <span className="mr-1.5">{option.emoji}</span>
-                        {option.label}
-                      </button>
-                    ))}
+              <div>
+                <div className={`${panelClass} p-5 sm:p-6`}>
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className={sectionLabelClass}>Selected Members</p>
+                      <h2 className="mt-2 text-lg font-semibold text-white">
+                        Council Lineup
+                      </h2>
+                    </div>
+                    <span className="rounded-full border border-amber-300/20 bg-amber-300/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-amber-100">
+                      {selectedAgents.length}
+                    </span>
                   </div>
-                </div>
 
-                <button
-                  onClick={handleStart}
-                  disabled={!canStart || loading}
-                  className="w-full rounded-xl border border-white/14 bg-white/10 px-4 py-3 text-sm font-semibold text-white transition hover:border-white/24 hover:bg-white/14 disabled:cursor-not-allowed disabled:opacity-45"
-                >
-                  {loading ? "Starting..." : "Start Debate"}
-                </button>
+                  {selectedAgents.length > 0 ? (
+                    <div className="mt-5 space-y-3">
+                      {selectedAgents.map((agent) => (
+                        <button
+                          key={agent.id}
+                          type="button"
+                          onClick={() => openAgentDetails(agent)}
+                          className="flex w-full items-start gap-3 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-left transition hover:border-white/18 hover:bg-white/[0.06]"
+                        >
+                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-amber-300/18 bg-amber-300/12 text-sm font-bold text-amber-100">
+                            {agent.initials || agent.name.split(" ").slice(0, 2).map((w) => w[0]).join("")}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="min-w-0">
+                                <p className="truncate text-sm font-semibold text-white">{agent.name}</p>
+                                <p className="mt-1 text-xs text-white/55">{agent.role}</p>
+                              </div>
+                              <div className="flex flex-wrap justify-end gap-2">
+                                {agent.domain && (
+                                  <span className="rounded-full border border-white/10 bg-white/[0.04] px-2 py-1 text-[0.6rem] font-medium uppercase tracking-[0.16em] text-white/42">
+                                    {agent.domain}
+                                  </span>
+                                )}
+                                {agent.category && (
+                                  <span className="rounded-full border border-sky-300/15 bg-sky-300/10 px-2 py-1 text-[0.6rem] font-semibold uppercase tracking-[0.16em] text-sky-100">
+                                    {formatCategoryLabel(agent.category)}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            <div className="mt-3 flex justify-end">
+                              <button
+                                type="button"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  toggleAgent(agent.id);
+                                }}
+                                className="rounded-xl border border-rose-300/20 bg-rose-300/10 px-3 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-rose-100 transition hover:border-rose-300/32 hover:bg-rose-300/16"
+                              >
+                                Remove
+                              </button>
+                            </div>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="mt-5 rounded-[1.25rem] border border-dashed border-white/10 bg-white/[0.02] px-4 py-6 text-center text-sm text-white/45">
+                      Select agents from the roster or generated list to build your council.
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </aside>
@@ -511,18 +830,28 @@ function AgentsPage() {
                   </div>
 
                   <div className="flex flex-wrap gap-2">
-                    {DOMAIN_OPTIONS.map((domain) => (
+                    {availableCategoryOptions.map((category) => (
                       <button
-                        key={domain}
+                        key={category}
                         type="button"
-                        onClick={() => setSelectedDomain(domain)}
+                        onClick={() => setSelectedCategory(category)}
                         className={`rounded-full border px-3 py-1.5 text-xs font-medium transition ${
-                          selectedDomain === domain
+                          selectedCategory === category
                             ? "border-sky-300/40 bg-sky-300/15 text-sky-100"
                             : "border-white/10 bg-white/5 text-white/60 hover:border-white/20 hover:bg-white/8"
                         }`}
                       >
-                        {domain}
+                        {category === "All" ? "All" : formatCategoryLabel(category)}
+                        <span className="ml-1.5 text-white/35">
+                          (
+                          {category === "All"
+                            ? agents.length
+                            : agents.filter(
+                                (agent) =>
+                                  String(agent.category || "other").trim().toLowerCase() === category
+                              ).length}
+                          )
+                        </span>
                       </button>
                     ))}
                   </div>
@@ -534,7 +863,8 @@ function AgentsPage() {
                           key={agent.id}
                           agent={agent}
                           selected={setup.agentIds.includes(agent.id)}
-                          onToggle={() => toggleAgent(agent.id)}
+                          onToggle={toggleAgent}
+                          onOpenDetails={openAgentDetails}
                         />
                       ))}
                     </div>
@@ -619,11 +949,16 @@ function AgentsPage() {
                   </div>
 
                   {suggestedAgents.length > 0 && (
-                    <div>
+                    <div className="rounded-[1.25rem] border border-emerald-300/14 bg-emerald-300/[0.05] p-4 sm:p-5">
                       <div className="mb-4 flex items-center justify-between gap-3">
-                        <h4 className="text-base font-semibold text-white">
-                          Suggested Agents
-                        </h4>
+                        <div>
+                          <h4 className="text-base font-semibold text-white">
+                            Generated Agents
+                          </h4>
+                          <p className="mt-1 text-sm text-white/58">
+                            These agents were added to your library. Select the ones you want in this debate.
+                          </p>
+                        </div>
                         <span className="text-sm text-white/45">
                           {suggestedAgents.length} ready
                         </span>
@@ -631,11 +966,13 @@ function AgentsPage() {
 
                       <div className="grid gap-4 md:grid-cols-2">
                         {suggestedAgents.map((agent) => (
-                          <SuggestedAgentCard
-                            key={agent.tempId}
+                          <GeneratedAgentCard
+                            key={agent.id || agent.tempId}
                             agent={agent}
                             justification={agent.justification}
-                            onAdd={handleAddDraft}
+                            selected={setup.agentIds.includes(agent.id)}
+                            onToggle={toggleAgent}
+                            onOpenDetails={openAgentDetails}
                           />
                         ))}
                       </div>
@@ -738,17 +1075,26 @@ function AgentsPage() {
                   </div>
 
                   {suggestedAgents.length > 0 && (
-                    <div>
-                      <h4 className="mb-4 text-base font-semibold text-white">
-                        Created Agent
-                      </h4>
+                    <div className="rounded-[1.25rem] border border-emerald-300/14 bg-emerald-300/[0.05] p-4 sm:p-5">
+                      <div className="mb-4 flex items-center justify-between gap-3">
+                        <div>
+                          <h4 className="text-base font-semibold text-white">
+                            Generated Agent
+                          </h4>
+                          <p className="mt-1 text-sm text-white/58">
+                            Your created agent is now in the library and can be selected below.
+                          </p>
+                        </div>
+                      </div>
                       <div className="max-w-xl">
                         {suggestedAgents.map((agent) => (
-                          <SuggestedAgentCard
-                            key={agent.tempId}
+                          <GeneratedAgentCard
+                            key={agent.id || agent.tempId}
                             agent={agent}
                             justification={agent.justification}
-                            onAdd={handleAddDraft}
+                            selected={setup.agentIds.includes(agent.id)}
+                            onToggle={toggleAgent}
+                            onOpenDetails={openAgentDetails}
                           />
                         ))}
                       </div>
@@ -761,6 +1107,14 @@ function AgentsPage() {
           </main>
         </div>
       </div>
+
+      <AgentDetailsModal
+        agent={activeAgentDetails?.agent}
+        justification={activeAgentDetails?.justification}
+        selected={setup.agentIds.includes(activeAgentDetails?.agent?.id)}
+        onToggle={toggleAgent}
+        onClose={() => setActiveAgentDetails(null)}
+      />
     </div>
   );
 }

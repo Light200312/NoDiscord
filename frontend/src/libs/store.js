@@ -129,23 +129,37 @@ const useStore = create(
         }
       },
 
-      startSession: async () => {
+      startSession: async (overrides = {}) => {
         const { setup, settings } = get();
         set({ error: "", loading: true });
         try {
-          const effectiveTemperature = String(setup.temperature || setup.mood || "analytical").trim();
+          const mergedSetup = { ...setup, ...(overrides || {}) };
+          const mergedSettings = {
+            ...settings,
+            ...((overrides && overrides.settings) || {}),
+          };
+          const effectiveTemperature = String(mergedSetup.temperature || mergedSetup.mood || "analytical").trim();
           const data = await api.startSession({
-            ...setup,
+            ...mergedSetup,
             temperature: effectiveTemperature,
-            mood: setup.mood || effectiveTemperature,
-            settings,
-            maxArguments: settings.maxArguments,
-            orchestrationMode: settings.orchestrationMode,
-            memoryMode: settings.memoryMode,
-            contextMode: settings.contextMode,
-            languageMode: settings.languageMode,
+            mood: mergedSetup.mood || effectiveTemperature,
+            settings: mergedSettings,
+            maxArguments: mergedSettings.maxArguments,
+            orchestrationMode: mergedSettings.orchestrationMode,
+            memoryMode: mergedSettings.memoryMode,
+            contextMode: mergedSettings.contextMode,
+            languageMode: mergedSettings.languageMode,
           });
-          set({ session: data.session });
+          set({
+            session: data.session,
+            setup: {
+              ...setup,
+              topic: mergedSetup.topic || setup.topic,
+              mood: mergedSetup.mood || setup.mood,
+              temperature: effectiveTemperature,
+              agentIds: Array.isArray(data.session?.agentIds) ? data.session.agentIds : setup.agentIds,
+            },
+          });
           await get().loadHistory();
           return data.session;
         } catch (err) {

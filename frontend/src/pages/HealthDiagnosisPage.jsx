@@ -82,6 +82,9 @@ const HealthDiagnosisPage = () => {
       await startSession({
         topic: medicalCase,
         agents: selectedAgents,
+        sourceType: 'feature',
+        sourceFeature: 'health-diagnosis',
+        sourceLabel: 'Health Diagnosis',
       })
 
       navigate('/debate')

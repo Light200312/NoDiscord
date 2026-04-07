@@ -43,6 +43,7 @@ const api = {
   startSession: (payload) => http.post("/api/session/start", payload),
   getSession: (sessionId) => http.get(`/api/session/${sessionId}`),
   getHistory: () => http.get("/api/history"),
+  getConclusions: (params) => http.get("/api/conclusions", { params }),
   sendMessage: (sessionId, text) => http.post(`/api/session/${sessionId}/message`, { text }),
   autoStep: (sessionId) => http.post(`/api/session/${sessionId}/auto-step`),
   stopSession: (sessionId) => http.post(`/api/session/${sessionId}/stop`),

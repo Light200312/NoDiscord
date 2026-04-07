@@ -78,6 +78,9 @@ const VRInterviewPage = () => {
       await startSession({
         topic: scenarioType,
         agents: selectedAgents,
+        sourceType: 'feature',
+        sourceFeature: 'vr-interview',
+        sourceLabel: 'VR Interview / GD',
       })
 
       navigate('/debate')

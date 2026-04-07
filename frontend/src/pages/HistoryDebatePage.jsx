@@ -84,6 +84,9 @@ const HistoryDebatePage = () => {
       await startSession({
         topic: historicalTopic,
         agents: selectedAgents,
+        sourceType: 'feature',
+        sourceFeature: 'history-debate',
+        sourceLabel: 'Travel to the Past',
       })
 
       navigate('/debate')

@@ -201,10 +201,26 @@ export function DebatePage() {
   };
 
   const handlePlayAudio = (messageId) => {
-    if (!audioQueueRef.current.includes(messageId)) {
-      audioQueueRef.current.push(messageId);
-      playAudioQueue(true);
+    if (speakingId === messageId && isPaused) {
+      synth.current.resume();
+      setIsPaused(false);
+      return;
     }
+
+    if (speakingId === messageId && isSpeaking) return;
+
+    audioQueueRef.current = audioQueueRef.current.filter((queuedId) => queuedId !== messageId);
+
+    if (synth.current.speaking || synth.current.pending || isSpeaking) {
+      synth.current.cancel();
+      currentUtteranceRef.current = null;
+      setIsSpeaking(false);
+      setIsPaused(false);
+      setSpeakingId(null);
+    }
+
+    audioQueueRef.current.unshift(messageId);
+    playAudioQueue(true);
   };
 
   const handlePauseResume = () => {
@@ -382,10 +398,9 @@ export function DebatePage() {
                                 <button 
                                   type="button"
                                   onClick={() => handlePlayAudio(msg.id)}
-                                  disabled={isSpeakingNow}
-                                  className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-medium text-slate-200 transition hover:bg-white/10 disabled:cursor-not-allowed  disabled:opacity-50"
+                                  className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-medium text-slate-200 transition hover:bg-white/10"
                                 >
-                                  {isSpeakingNow ? "Playing" : "Play"}
+                                  {isSpeakingNow ? (isPaused ? "Resume" : "Playing") : "Play"}
                                 </button>
                                 {isSpeakingNow && (
                                   <button
