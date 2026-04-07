@@ -15,7 +15,7 @@ const AppShell = () => {
         <Navbar />
       </div>
 
-      <main className={isHomeRoute ? 'pb-0 pt-2' : 'mx-auto max-w-7xl px-4 pb-12 pt-6 sm:px-6 lg:px-8'}>
+      <main className={isHomeRoute ? 'pb-0 pt-2' : 'mx-auto max-w-full '}>
         <Routes>
           <Route path="/" element={<Navigate to="/home" replace />} />
           <Route path="/home" element={<HomePage />} />
