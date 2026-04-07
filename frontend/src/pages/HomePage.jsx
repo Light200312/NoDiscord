@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 const heroStats = [
   { value: 'Dynamic', label: 'debate simulation' },
   { value: 'Infinity', label: 'Persona Types' },
-  { value: 'Popular LLMs', label: 'by openRouter'},
+  { value: 'Popular LLMs', label: 'by openRouter' },
   { value: 'Live', label: 'AI Judging' },
 ]
 
@@ -64,7 +64,7 @@ const sessionSteps = [
     description:
       'The conversation escalates through disagreement, expert reasoning, and synthesis until the useful signal becomes impossible to miss.',
   },
-    {
+  {
     step: 'IV',
     title: 'Auto-Pilot',
     description:
@@ -74,16 +74,20 @@ const sessionSteps = [
 
 const playModes = [
   {
+    image: "/puppet.png",
     title: 'Dynamic Orchestration',
     description:
       'Adapt prompts, references, and framing to the exact room so each session behaves like a custom format instead of a template.',
-    mvp: 
-      ''
+    mvp:
+      'Fair and relevant orchestration is achieved through a credit-based turn-taking system where each model begins with equal starting credits. When choosing among agents with similar credits, one is selected at random. To maintain balance, the chosen agents credits are decreased while the credits of all unselected agents are increased. However, to ensure contextual relevance, this random selection is overridden if a specific agent is mentioned in past messages, automatically granting that mentioned model the next turn.'
   },
   {
+    image: "/birdFamily.png",
     title: 'Persona Routing',
     description:
       'Blend experts, historical figures, and fictional voices so the strongest perspective enters when the room actually needs it.',
+    mvp:
+      'Based on the "Bird Family Theorem," the orchestrator manages debate turns much like a mother bird feeding her chicks. While she instinctively tries to feed all her chicks fairly to give each a chance, she subconsciously favors the strongest chick to maximize its chances of survival. Similarly, the orchestrator ensures every agent gets a fair baseline opportunity to speak, but strategically prioritizes the most relevant agent. This priority is determined by past messages and which agents specific role can contribute the most value to the current context.'
   },
 ]
 
@@ -264,17 +268,84 @@ const HomePage = () => {
           </h2>
         </div>
 
-        <div className="mt-14 grid gap-4 md:grid-cols-2 xl:grid-cols-3 bg-amber-500">
+        <div className="mt-14 flex flex-col gap-8">
           {playModes.map((mode) => (
             <article
               key={mode.title}
-              className={`${panelClass} px-6 py-7 transition duration-300 hover:-translate-y-1 hover:border-white/20`}
+              className={`${panelClass} flex flex-col md:flex-row gap-8 p-6 sm:p-8 transition duration-300 hover:-translate-y-1 hover:border-white/20`}
             >
-              <div className="mb-5 h-px w-12 bg-white/24" />
-              <h3 className="text-2xl font-semibold tracking-[-0.04em] text-white">{mode.title}</h3>
-              <p className="mt-4 text-sm leading-7 text-white/66">{mode.description}</p>
+              {/* Image Container (Left Side) */}
+              <div className="shrink-0 flex items-center justify-center w-full md:w-64 h-64 rounded-2xl border border-white/10 bg-white/5 overflow-hidden ">
+                <img
+                  src={mode.image}
+                  alt={mode.title}
+                  className="w-full h-full object-contain p-4 opacity-80"
+                  onError={(e) => {
+                    e.target.style.display = 'none';
+                    e.target.nextSibling.style.display = 'block';
+                  }}
+                />
+                <span className="hidden text-sm uppercase tracking-widest text-white/30">Image</span>
+              </div>
+
+              {/* Content Container (Right Side) */}
+              <div className="flex flex-col justify-center flex-1">
+                <h3 className="text-3xl font-semibold tracking-[-0.04em] text-white">
+                  {mode.title}
+                </h3>
+
+                <p className="mt-4 text-base leading-relaxed text-white/70">
+                  {mode.description}
+                </p>
+
+                {/* MVP Section */}
+                <div className="mt-6 border-t border-white/10 pt-4">
+                  <span className="block mb-2 text-xs font-bold uppercase tracking-[0.2em] text-white/40">
+                    MVP Implementation
+                  </span>
+                  <p className="text-sm font-medium leading-relaxed text-white/50 italic">
+                    {mode.mvp}
+                  </p>
+                </div>
+              </div>
             </article>
           ))}
+        </div>
+      </section>
+
+      <section className="relative border-t border-white/8">
+        <div className="mx-auto max-w-6xl px-4 py-24 sm:px-6 lg:px-8 lg:py-28">
+          <div className="mx-auto max-w-4xl text-center">
+            <h2
+              className="text-4xl font-black tracking-[-0.06em] text-white sm:text-5xl lg:text-7xl"
+              style={{ fontFamily: '"Bahnschrift", "Aptos", "Segoe UI", sans-serif' }}
+            >
+              <span className="block">One Model Thinks.</span>
+              <span className="mt-2 block text-amber-300">A Council Decides.</span>
+            </h2>
+
+            <p className="mx-auto mt-8 max-w-3xl text-lg leading-8 text-white/68 sm:text-2xl">
+              Stop consulting a single opinion. Convene the greatest minds in history, or the
+              sharpest experts alive.
+            </p>
+
+            <div className="mt-12 flex flex-col items-center justify-center gap-4 sm:flex-row">
+              <Link
+                to="/debate"
+                className="inline-flex min-w-[16rem] items-center justify-center rounded-2xl border border-white/25 bg-white/10 px-8 py-4 text-sm font-semibold uppercase tracking-[0.2em] text-white transition duration-300 hover:-translate-y-0.5 hover:border-white/50 hover:bg-white/14"
+              >
+                Open the Council
+                <span className="ml-2 text-white/70">-&gt;</span>
+              </Link>
+
+              <Link
+                to="/agents"
+                className="inline-flex min-w-[16rem] items-center justify-center rounded-2xl border border-white/12 bg-white/5 px-8 py-4 text-sm font-semibold uppercase tracking-[0.2em] text-white/88 transition duration-300 hover:-translate-y-0.5 hover:border-white/25 hover:bg-white/8 hover:text-white"
+              >
+                Browse Personas
+              </Link>
+            </div>
+          </div>
         </div>
       </section>
     </div>
