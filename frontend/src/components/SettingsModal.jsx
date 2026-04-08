@@ -130,20 +130,23 @@ function SettingsModal({ isOpen, onClose }) {
               }),
           })}
 
-          {renderBinaryToggleRow({
-            title: "Response Language",
-            leftLabel: "English (IN)",
-            rightLabel: "Hinglish",
-            isRightSelected: settings.languageMode === "hinglish",
-            onSelectLeft: () =>
-              setSettings({
-                languageMode: "english_in",
-              }),
-            onSelectRight: () =>
-              setSettings({
-                languageMode: "hinglish",
-              }),
-          })}
+          <section className="space-y-3">
+            <label className="text-sm font-semibold text-white">
+              Response Language
+            </label>
+            <select
+              value={settings.languageMode}
+              onChange={(e) => setSettings({ languageMode: e.target.value })}
+              className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white focus:border-sky-300/50 focus:outline-none focus:ring-1 focus:ring-sky-300/25"
+            >
+              <option value="english_in">English (IN)</option>
+              <option value="english_us">English (US)</option>
+              <option value="hinglish">Hinglish</option>
+            </select>
+            <p className="text-xs text-white/40">
+              Choose the speaking style used for responses and audio input.
+            </p>
+          </section>
 
           {/* Max Arguments */}
           <section className="space-y-3">

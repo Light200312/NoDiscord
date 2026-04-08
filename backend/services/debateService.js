@@ -71,7 +71,10 @@ function clampNumber(value, { min, max, fallback }) {
 }
 
 function normalizeLanguageMode(value) {
-  return String(value || "").trim().toLowerCase() === "hinglish" ? "hinglish" : "english_in";
+  const normalized = String(value || "").trim().toLowerCase();
+  if (normalized === "hinglish") return "hinglish";
+  if (normalized === "english_us") return "english_us";
+  return "english_us";
 }
 
 function inferAgentCategory(payload = {}) {

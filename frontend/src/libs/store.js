@@ -3,7 +3,10 @@ import { persist } from "zustand/middleware";
 import { api } from "./api";
 
 function normalizeLanguageMode(value) {
-  return String(value || "").trim().toLowerCase() === "hinglish" ? "hinglish" : "english_in";
+  const normalized = String(value || "").trim().toLowerCase();
+  if (normalized === "hinglish") return "hinglish";
+  if (normalized === "english_us") return "english_us";
+  return "english_us";
 }
 
 const initialSetup = {
@@ -19,7 +22,7 @@ const initialSettings = {
   contextMode: "simple",
   audioAutoSpeak: true,
   autoLoopEnabled: false,
-  languageMode: "english_in",
+  languageMode: "english_us",
   maxArguments: 25,
 };
 

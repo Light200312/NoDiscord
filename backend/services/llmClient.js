@@ -658,11 +658,15 @@ function formatConversation(conversation = []) {
 }
 
 function normalizeLanguageMode(value) {
-  return String(value || "").trim().toLowerCase() === "hinglish" ? "hinglish" : "english_in";
+  const normalized = String(value || "").trim().toLowerCase();
+  if (normalized === "hinglish") return "hinglish";
+  if (normalized === "english_us") return "english_us";
+  return "english_us";
 }
 
 function getLanguageInstruction(languageMode = "english_in") {
-  if (normalizeLanguageMode(languageMode) === "hinglish") {
+  const normalizedLanguageMode = normalizeLanguageMode(languageMode);
+  if (normalizedLanguageMode === "hinglish") {
     return [
       "Respond in natural Hinglish using roman script only.",
       "Keep the language about 80% Hindi and 20% English, like a normal Indian speaker in everyday conversation.",
@@ -671,6 +675,9 @@ function getLanguageInstruction(languageMode = "english_in") {
       "Do not use markdown bullets, asterisks, or * anywhere in the response.",
       "Use a clear, well-known Indian conversational voice that still fits the persona.",
     ].join(" ");
+  }
+  if (normalizedLanguageMode === "english_us") {
+    return "Respond in clear, natural US English. Use familiar American phrasing and a conversational tone.";
   }
   return "Respond in Indian English. Use clear English phrasing familiar to users in India.";
 }
@@ -738,6 +745,22 @@ function buildMentorSystem(agent, mood, temperature, languageMode) {
     `Debate mood: ${mood}.`,
     `Debate temperature: ${temperature}.`,
     `Temperature guidance: goal=${profile.goal}; tone=${profile.tone}; focus=${profile.focus}.`,
+    `Identity anchor: when you answer, sound like ${agent.name} would sound if speaking live in this room right now.`,
+    "Character-faithfulness rules:",
+    "- speak in a way that matches this specific person's worldview, rhythm, priorities, and temperament",
+    "- preserve the persona's likely diction level: plainspoken, scholarly, blunt, poetic, bureaucratic, tactical, etc.",
+    "- let the answer reflect the persona's incentives, lived experience, and intellectual habits, not just the topic",
+    "- if the persona is historical or fictional, avoid sounding like a generic modern AI assistant explaining them from outside",
+    "- answer from inside the character's point of view, not as a narrator describing the character",
+    "- let the speech style visibly shape sentence length, emphasis, and framing",
+    "- use the agent's known backstory, role, era, and priorities as the source of their instincts",
+    "- for historical figures, ground the response in historically plausible beliefs, concerns, institutions, and conflicts from their world",
+    "- for real public figures, prefer historically or biographically defensible positions over improvised personality",
+    "- if you draw on known historical record, absorb it naturally into the voice; do not cite it like a textbook unless this persona naturally would",
+    "- do not use bland assistant phrases like 'as an AI', 'I would suggest', 'it's important to note', or generic summary filler",
+    "- when the persona is opinionated or distinctive, let that distinctiveness show without becoming parody or caricature",
+    "- prefer concrete framing, metaphors, and priorities this persona would naturally reach for",
+    "- if a fact is uncertain, express uncertainty in-character rather than breaking persona",
     getLanguageInstruction(languageMode),
     "Stay fully within this persona and these constraints.",
     "Sound like this person or persona specifically, not like a generic AI assistant or moderator.",
@@ -795,6 +818,13 @@ Output constraints:
 - give critique plus one concrete improvement
 - build on earlier council points when it genuinely sharpens the response
 - keep the voice faithful to the persona's tone, reasoning method, and priorities
+- make the reply recognizably sound like this persona, not just a smart generic debater
+- preserve their likely worldview, sentence rhythm, and choice of examples
+- use wording this persona could plausibly say in a live conversation
+- let ${agent.name}'s speechStyle and openingAngle influence how the answer begins and unfolds
+- when useful, draw on historically grounded details, institutional logic, or lived experience this persona would actually know
+- do not turn the answer into a biography or encyclopedia entry; make it feel like a real person speaking
+- avoid sterile bullet-point thinking unless this persona would naturally speak that way
 - avoid generic assistant phrasing
 - 1-2 short paragraphs max`;
 

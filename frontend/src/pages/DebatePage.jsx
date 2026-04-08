@@ -39,7 +39,6 @@ export function DebatePage() {
 
   const [messageText, setMessageText] = useState("");
   const [availableVoices, setAvailableVoices] = useState([]);
-  const [selectedVoice, setSelectedVoice] = useState("");
   const [speakingId, setSpeakingId] = useState(null);
   const [showAgentInfo, setShowAgentInfo] = useState(null);
   const [isAgentPanelOpen, setIsAgentPanelOpen] = useState(false);
@@ -98,7 +97,13 @@ export function DebatePage() {
     utterance.pitch = 1;
 
     if (availableVoices.length > 0) {
-      utterance.voice = availableVoices.find((voice) => voice.name === selectedVoice) || availableVoices[0];
+      const preferredVoice =
+        settings.languageMode === "hinglish"
+          ? availableVoices.find((voice) => /india|hindi/i.test(`${voice.name} ${voice.lang}`))
+          : settings.languageMode === "english_us"
+          ? availableVoices.find((voice) => /en[-_]us|united states|american|us english/i.test(`${voice.lang} ${voice.name}`))
+          : availableVoices.find((voice) => /en[-_]in|india/i.test(`${voice.lang} ${voice.name}`));
+      utterance.voice = preferredVoice || availableVoices[0];
     }
 
     utterance.onend = () => {
@@ -137,18 +142,6 @@ export function DebatePage() {
     const loadVoices = () => {
       const voices = synth.current?.getVoices?.() || [];
       setAvailableVoices(voices);
-      setSelectedVoice((current) => {
-        if (current && voices.some((voice) => voice.name === current)) {
-          return current;
-        }
-
-        const preferredVoice =
-          settings.languageMode === "hinglish"
-            ? voices.find((voice) => /india|hindi/i.test(`${voice.name} ${voice.lang}`))
-            : voices.find((voice) => /en[-_]in|india/i.test(`${voice.lang} ${voice.name}`));
-
-        return preferredVoice?.name || voices[0]?.name || "";
-      });
     };
 
     loadVoices();
@@ -321,7 +314,12 @@ export function DebatePage() {
 
     cancelCurrentSpeech();
     const recognition = new SpeechRecognition();
-    recognition.lang = settings.languageMode === "hinglish" ? "hi-IN" : "en-IN";
+    recognition.lang =
+      settings.languageMode === "hinglish"
+        ? "hi-IN"
+        : settings.languageMode === "english_us"
+        ? "en-US"
+        : "en-IN";
     recognition.interimResults = true;
     recognition.continuous = false;
 
@@ -524,23 +522,6 @@ export function DebatePage() {
                       <span className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500">
                         Composer Tools
                       </span>
-                      <select
-                        value={selectedVoice}
-                        onChange={(e) => setSelectedVoice(e.target.value)}
-                        className="rounded-full border border-slate-700 bg-slate-900 px-3 py-1 text-xs text-slate-100 outline-none transition focus:border-blue-400"
-                        disabled={availableVoices.length === 0}
-                      >
-                        {availableVoices.length === 0 ? (
-                          <option value="">No voices available</option>
-                        ) : (
-                          availableVoices.map((voice) => (
-                            <option key={`${voice.name}-${voice.lang}`} value={voice.name}>
-                              {voice.name} ({voice.lang})
-                            </option>
-                          ))
-                        )}
-                      </select>
-
                       <label className="inline-flex items-center gap-1.5 rounded-full border border-slate-700 bg-slate-900 px-3 py-1 text-xs text-slate-300">
                         <input
                           type="checkbox"
@@ -557,6 +538,7 @@ export function DebatePage() {
                         className="rounded-full border border-slate-700 bg-slate-900 px-3 py-1 text-xs text-slate-100 outline-none transition focus:border-blue-400"
                       >
                         <option value="english_in">English (IN)</option>
+                        <option value="english_us">English (US)</option>
                         <option value="hinglish">Hinglish</option>
                       </select>
 
@@ -658,7 +640,11 @@ export function DebatePage() {
                 <div className="rounded-[18px] border border-slate-800 bg-slate-950/70 px-3 py-2">
                   <p className="text-[10px] uppercase tracking-[0.22em] text-slate-500">Language</p>
                   <p className="mt-1.5 text-xs font-semibold text-slate-100">
-                    {session.languageMode === "hinglish" || settings.languageMode === "hinglish" ? "Hinglish" : "English (IN)"}
+                    {session.languageMode === "hinglish" || settings.languageMode === "hinglish"
+                      ? "Hinglish"
+                      : session.languageMode === "english_us" || settings.languageMode === "english_us"
+                      ? "English (US)"
+                      : "English (IN)"}
                   </p>
                 </div>
               </div>
