@@ -1434,8 +1434,10 @@ export {
 };
 
 async function walkIntoPastDebate({ topic = "" } = {}) {
-  // Pre-built historians (same as root project)
-  const historians = [
+  const safeTopic = String(topic || "").trim();
+  if (!safeTopic) throw new Error("Topic is required for historical debates.");
+
+  const fallbackHistorians = [
     {
       id: createId("historian"),
       name: "Dr. Margaret Chen",
@@ -1451,6 +1453,8 @@ async function walkIntoPastDebate({ topic = "" } = {}) {
       specialAbility: "Connects events to larger historical trends",
       stats: { logic: 88, rhetoric: 76, bias: 22 },
       tags: ["history", "analysis", "evidence"],
+      domain: "History",
+      category: "historian",
     },
     {
       id: createId("historian"),
@@ -1467,92 +1471,177 @@ async function walkIntoPastDebate({ topic = "" } = {}) {
       specialAbility: "Challenges conventional interpretations",
       stats: { logic: 85, rhetoric: 82, bias: 38 },
       tags: ["politics", "ideology", "critique"],
+      domain: "History",
+      category: "historian",
     },
   ];
 
-  // Generate 4 historical figures relevant to the topic using LLM
-  const historicalFiguresPrompt = `You are generating 4 historical figures relevant to the topic: "${topic}"
-    
-Generate 4 distinct historical figures who would have meaningful perspectives on this topic. Return as JSON array with objects containing:
-{
-  "name": "Historical Figure Name",
-  "era": "Time period they lived in",
-  "role": "Their primary role/position",
-  "expertise": "What they were known for",
-  "stance": "Their likely position on this topic",
-  "description": "1-2 sentence description",
-  "backstoryLore": "How they shaped this event/era",
-  "specialAbility": "What made them unique/influential",
-  "stats": {"logic": 70-90, "rhetoric": 60-85, "bias": 20-50}
-}
+  let historianPool = fallbackHistorians;
+  try {
+    const rootModule = await import("../../../backend/PreBuildAgents.js");
+    const importedHistorians = Array.isArray(rootModule?.historians) ? rootModule.historians : [];
+    if (importedHistorians.length) {
+      historianPool = importedHistorians.map((historian) =>
+        normalizeAgent({
+          ...historian,
+          createdFrom: historian.createdFrom || "manual",
+          sourceTopic: historian.sourceTopic || "Historians",
+          category: "historian",
+        })
+      );
+    }
+  } catch (error) {
+    console.warn("Root historian import unavailable, using local fallback historians.");
+  }
 
-Ensure they represent different viewpoints on the historical event. Make them specific and historically grounded.`;
+  let historicalEvent = safeTopic;
+  let selectedHistorians = historianPool.slice(0, 2);
+
+  try {
+    const historianSelection = await callJsonTask({
+      system:
+        "You identify the exact historical event behind a user topic and select the most relevant historians from a provided list. Return strict JSON only.",
+      prompt:
+        `Topic: ${safeTopic}\n\n` +
+        `Available historians:\n` +
+        historianPool
+          .map(
+            (historian) =>
+              `- id: ${historian.id} | ${historian.name} | expertise: ${historian.expertise} | tags: ${(historian.tags || []).join(", ")}`
+          )
+          .join("\n") +
+        `\n\nReturn JSON:\n{\n  "historicalEvent": "specific event or period",\n  "selectedHistorianIds": ["id1", "id2"],\n  "reasoning": "short explanation"\n}`,
+      maxTokens: TOKEN_BUDGETS.orchestration,
+      temperature: 0.2,
+    });
+
+    historicalEvent = String(historianSelection?.historicalEvent || safeTopic).trim() || safeTopic;
+    const selectedIds = Array.isArray(historianSelection?.selectedHistorianIds)
+      ? historianSelection.selectedHistorianIds.slice(0, 2)
+      : [];
+    const matched = historianPool.filter((historian) => selectedIds.includes(historian.id));
+    if (matched.length) {
+      selectedHistorians = matched;
+    }
+    while (selectedHistorians.length < 2 && historianPool.length > selectedHistorians.length) {
+      const nextHistorian = historianPool.find(
+        (historian) => !selectedHistorians.some((selected) => selected.id === historian.id)
+      );
+      if (!nextHistorian) break;
+      selectedHistorians.push(nextHistorian);
+    }
+  } catch (error) {
+    console.warn("Historian selection failed, using fallback historians:", error.message);
+  }
+
+  const historicalFiguresPrompt = `You are generating 4 real historical figures for the historical event/topic: "${historicalEvent}".
+
+Topic context: "${safeTopic}"
+
+Select the most important real people directly involved in this event, conflict, movement, negotiation, or decision.
+Prioritize the central actors first: rulers, commanders, organizers, reformers, rebels, negotiators, witnesses, thinkers, or public figures whose actions materially shaped what happened.
+
+Hard rules:
+- choose only real historical people, never fictional characters
+- choose people who were actually alive and directly involved in this event or period
+- do not return generic personas like "Leader", "Strategist", or "Chronicler"
+- do not return modern historians, modern commentators, or later biographers unless they were direct participants in the event itself
+- prefer the most historically significant participants over loosely related figures
+- if the topic is broad, first infer the exact event or period that best matches it, then choose the key real people from that event
+- each returned figure must have a clear, direct, historically defensible connection to the event
+- include the most important names people would reasonably expect when studying this event
+
+Return only a JSON array with exactly 4 objects:
+[
+  {
+    "name": "Historical Figure Name",
+    "era": "Time period they lived in",
+    "role": "Their real role or position in the event",
+    "expertise": "What they were known for in that context",
+    "stance": "Their likely position or interest in the event",
+    "description": "1-2 sentences on why they matter to this event",
+    "backstoryLore": "At least 50 words explaining how they shaped this specific event or period",
+    "specialAbility": "What made them uniquely influential",
+    "stats": {"logic": 70-90, "rhetoric": 60-85, "bias": 20-50},
+    "tags": ["event", "role", "historical perspective"]
+  }
+]
+
+The figures must be specific, historically grounded, and among the most important real people involved in "${historicalEvent}".`;
 
   let historicalFigures = [];
   try {
     const response = await callJsonTask({
+      system:
+        "You generate only real historical figures who directly participated in the identified event. Return strict JSON only.",
       prompt: historicalFiguresPrompt,
       maxTokens: TOKEN_BUDGETS.generation,
+      temperature: 0.25,
     });
     historicalFigures = Array.isArray(response) 
       ? response.map((fig) => ({
           ...normalizeAgent({
             ...fig,
-            era: fig.era || "Historical Era",
+            era: fig.era || historicalEvent,
+            domain: fig.domain || "History",
+            category: "historian",
             createdFrom: "historical-generation",
-            sourceTopic: topic,
+            sourceTopic: safeTopic,
           }),
           initials: computeInitials(fig.name),
-        }))
+        })).filter((fig) => fig.name && !/unresolved|historian \d|key participant/i.test(fig.name))
       : [];
   } catch (err) {
     console.error("Failed to generate historical figures:", err.message);
-    // Fallback: create generic historical figures
+    // Fallback: keep the structure working, but clearly mark these as unresolved placeholders.
     historicalFigures = [
       {
-        name: "Historical Figure 1",
-        role: "Leader",
+        name: "Unresolved Historical Figure 1",
+        role: "Key participant",
         era: topic,
-        expertise: "Primary participant in events",
+        expertise: "Major actor directly involved in the event",
         stats: { logic: 75, rhetoric: 70, bias: 35 },
       },
       {
-        name: "Historical Figure 2",
-        role: "Philosopher",
+        name: "Unresolved Historical Figure 2",
+        role: "Key participant",
         era: topic,
-        expertise: "Intellectual perspective",
+        expertise: "Important figure connected to the event",
         stats: { logic: 80, rhetoric: 75, bias: 28 },
       },
       {
-        name: "Historical Figure 3",
-        role: "Chronicler",
+        name: "Unresolved Historical Figure 3",
+        role: "Key participant",
         era: topic,
-        expertise: "Contemporary observer",
+        expertise: "Directly relevant historical participant",
         stats: { logic: 72, rhetoric: 78, bias: 42 },
       },
       {
-        name: "Historical Figure 4",
-        role: "Strategist",
+        name: "Unresolved Historical Figure 4",
+        role: "Key participant",
         era: topic,
-        expertise: "Tactical analysis",
+        expertise: "Directly relevant historical participant",
         stats: { logic: 78, rhetoric: 68, bias: 38 },
       },
     ].map((fig) =>
       normalizeAgent({
         ...fig,
         id: createId("historical"),
+        domain: "History",
+        category: "historian",
         createdFrom: "historical-fallback",
-        sourceTopic: topic,
+        sourceTopic: safeTopic,
       })
     );
   }
 
   // Combine and return
   return {
-    topic,
-    historians: historians.map(toClientAgent),
+    topic: safeTopic,
+    historicalEvent,
+    historians: selectedHistorians.map(toClientAgent),
     historicalFigures: historicalFigures.map(toClientAgent),
-    totalDebaters: historians.length + historicalFigures.length,
+    totalDebaters: selectedHistorians.length + historicalFigures.length,
   };
 }
 

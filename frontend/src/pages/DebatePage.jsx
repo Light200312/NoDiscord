@@ -3,15 +3,6 @@ import { useNavigate } from "react-router-dom";
 import { useStore } from "../libs/store";
 import ConcludeDebateModal from "../components/ConcludeDebateModal";
 
-const VOICE_OPTIONS = [
-  "Google US English Male",
-  "Google UK English Female",
-  "Google UK English Male",
-  "Google US English Female",
-  "Google Indian English Female",
-  "Google Indian English Male",
-];
-
 const AGENT_COLOR_MAP = {
   "Ava Rao": "border-blue-500/40 bg-blue-500/10 text-blue-100 shadow-blue-500/10",
   "Minister Kavya": "border-fuchsia-500/40 bg-fuchsia-500/10 text-fuchsia-100 shadow-fuchsia-500/10",
@@ -47,7 +38,8 @@ export function DebatePage() {
   const restartSession = useStore((s) => s.restartSession);
 
   const [messageText, setMessageText] = useState("");
-  const [selectedVoice, setSelectedVoice] = useState("Google Indian English Female");
+  const [availableVoices, setAvailableVoices] = useState([]);
+  const [selectedVoice, setSelectedVoice] = useState("");
   const [speakingId, setSpeakingId] = useState(null);
   const [showAgentInfo, setShowAgentInfo] = useState(null);
   const [isAgentPanelOpen, setIsAgentPanelOpen] = useState(false);
@@ -60,13 +52,32 @@ export function DebatePage() {
   const messagesEndRef = useRef(null);
   const audioQueueRef = useRef([]);
   const lastSpokenIndexRef = useRef(-1);
-  const synth = useRef(window.speechSynthesis);
+  const synth = useRef(typeof window !== "undefined" ? window.speechSynthesis : null);
   const autoLoopTimerRef = useRef(null);
   const autoLoopInFlightRef = useRef(false);
   const recognitionRef = useRef(null);
   const currentUtteranceRef = useRef(null);
 
+  const cancelCurrentSpeech = () => {
+    if (synth.current) {
+      synth.current.cancel();
+    }
+    currentUtteranceRef.current = null;
+    setIsSpeaking(false);
+    setIsPaused(false);
+    setSpeakingId(null);
+  };
+
+  const clearPendingAutoLoop = () => {
+    if (autoLoopTimerRef.current) {
+      clearTimeout(autoLoopTimerRef.current);
+      autoLoopTimerRef.current = null;
+    }
+  };
+
   const playAudioQueue = (forcePlay = false) => {
+    if (!synth.current) return;
+    if (isRecording) return;
     if (isSpeaking) return;
     if (audioQueueRef.current.length === 0) return;
     if (!settings.audioAutoSpeak && !forcePlay) return;
@@ -86,17 +97,8 @@ export function DebatePage() {
     utterance.rate = 0.95;
     utterance.pitch = 1;
 
-    const voices = synth.current.getVoices();
-    if (voices.length > 0) {
-      const voiceMap = {
-        "Google US English Male": voices.find((v) => v.name.includes("Google US English Male")) || voices[0],
-        "Google UK English Female": voices.find((v) => v.name.includes("Google UK English Female")) || voices[1],
-        "Google UK English Male": voices.find((v) => v.name.includes("Google UK English Male")) || voices[2],
-        "Google US English Female": voices.find((v) => v.name.includes("Google US English Female")) || voices[3],
-        "Google Indian English Female": voices.find((v) => v.name.includes("Google Indian English Female")) || voices[4],
-        "Google Indian English Male": voices.find((v) => v.name.includes("Google Indian English Male")) || voices[5],
-      };
-      utterance.voice = voiceMap[selectedVoice] || voices[0];
+    if (availableVoices.length > 0) {
+      utterance.voice = availableVoices.find((voice) => voice.name === selectedVoice) || availableVoices[0];
     }
 
     utterance.onend = () => {
@@ -130,8 +132,68 @@ export function DebatePage() {
   }, [loadAgents]);
 
   useEffect(() => {
-    setSelectedVoice(settings.languageMode === "hinglish" ? "Google Indian English Male" : "Google Indian English Female");
+    if (!synth.current) return undefined;
+
+    const loadVoices = () => {
+      const voices = synth.current?.getVoices?.() || [];
+      setAvailableVoices(voices);
+      setSelectedVoice((current) => {
+        if (current && voices.some((voice) => voice.name === current)) {
+          return current;
+        }
+
+        const preferredVoice =
+          settings.languageMode === "hinglish"
+            ? voices.find((voice) => /india|hindi/i.test(`${voice.name} ${voice.lang}`))
+            : voices.find((voice) => /en[-_]in|india/i.test(`${voice.lang} ${voice.name}`));
+
+        return preferredVoice?.name || voices[0]?.name || "";
+      });
+    };
+
+    loadVoices();
+    synth.current.addEventListener?.("voiceschanged", loadVoices);
+
+    return () => {
+      synth.current?.removeEventListener?.("voiceschanged", loadVoices);
+    };
   }, [settings.languageMode]);
+
+  useEffect(() => {
+    if (!session?.settings) return;
+    setSettings((currentSettings) => {
+      const nextSettings = {
+        ...currentSettings,
+        ...session.settings,
+      };
+
+      const hasChanged = Object.keys(nextSettings).some(
+        (key) => nextSettings[key] !== currentSettings[key]
+      );
+
+      return hasChanged ? nextSettings : currentSettings;
+    });
+  }, [session?.id, session?.settings, setSettings]);
+
+  useEffect(() => {
+    clearPendingAutoLoop();
+    audioQueueRef.current = [];
+    lastSpokenIndexRef.current = -1;
+    autoLoopInFlightRef.current = false;
+    cancelCurrentSpeech();
+
+    return () => {
+      clearPendingAutoLoop();
+      autoLoopInFlightRef.current = false;
+      audioQueueRef.current = [];
+      lastSpokenIndexRef.current = -1;
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+        recognitionRef.current = null;
+      }
+      cancelCurrentSpeech();
+    };
+  }, [session?.id]);
 
   useEffect(() => {
     if (messagesEndRef.current) {
@@ -148,26 +210,33 @@ export function DebatePage() {
       }
     });
 
-    if (settings.audioAutoSpeak && audioQueueRef.current.length > 0 && !isSpeaking) {
+    if (settings.audioAutoSpeak && !isRecording && audioQueueRef.current.length > 0 && !isSpeaking) {
       setTimeout(() => playAudioQueue(), 0);
     }
-  }, [session?.messages, isSpeaking, settings.audioAutoSpeak]);
+  }, [session?.messages, isSpeaking, isRecording, settings.audioAutoSpeak]);
 
   useEffect(() => {
-    if (autoLoopTimerRef.current) clearTimeout(autoLoopTimerRef.current);
-    if (!settings.autoLoopEnabled || !session || session.closed || loading || isSpeaking) {
+    clearPendingAutoLoop();
+    if (
+      !settings.autoLoopEnabled ||
+      !session ||
+      session.closed ||
+      loading ||
+      isSpeaking ||
+      isRecording
+    ) {
       autoLoopInFlightRef.current = false;
       return;
     }
 
-    const turnMessages = (session.messages || []).filter(
-      (m) => m.type === "mentor" || m.type === "user"
-    );
-    if (turnMessages.length >= (session.maxArguments || 25)) {
+    const mentorTurnCount = (session.messages || []).filter((m) => m.type === "mentor").length;
+    if (mentorTurnCount >= (session.maxArguments || 25)) {
       return;
     }
 
-    if (!isSpeaking && audioQueueRef.current.length === 0 && !autoLoopInFlightRef.current) {
+    const queueBlocksLoop = settings.audioAutoSpeak && audioQueueRef.current.length > 0;
+
+    if (!isSpeaking && !queueBlocksLoop && !autoLoopInFlightRef.current) {
       autoLoopTimerRef.current = setTimeout(async () => {
         autoLoopInFlightRef.current = true;
         try {
@@ -178,18 +247,25 @@ export function DebatePage() {
       }, 1200);
     }
     return () => {
-      if (autoLoopTimerRef.current) clearTimeout(autoLoopTimerRef.current);
+      clearPendingAutoLoop();
     };
-  }, [settings.autoLoopEnabled, session?.messages?.length, session?.closed, isSpeaking, loading, autoStep]);
+  }, [
+    settings.autoLoopEnabled,
+    settings.audioAutoSpeak,
+    session?.messages?.length,
+    session?.closed,
+    isSpeaking,
+    isRecording,
+    loading,
+    autoStep,
+  ]);
 
   const selectedAgents = (session?.agentIds || [])
     .map((id) => agents.find((a) => a.id === id))
     .filter(Boolean);
 
-  const mentorMessages = (session?.messages || []).filter(
-    (m) => m.type === "mentor" || m.type === "user"
-  );
-  const canContinue = session && !session.closed && mentorMessages.length < (session.maxArguments || 25);
+  const mentorTurnCount = (session?.messages || []).filter((m) => m.type === "mentor").length;
+  const canContinue = session && !session.closed && mentorTurnCount < (session.maxArguments || 25);
   const activeAgentInfo = showAgentInfo || selectedAgents[0] || null;
 
   const handleSendMessage = async (e) => {
@@ -201,6 +277,7 @@ export function DebatePage() {
   };
 
   const handlePlayAudio = (messageId) => {
+    if (!synth.current) return;
     if (speakingId === messageId && isPaused) {
       synth.current.resume();
       setIsPaused(false);
@@ -212,11 +289,7 @@ export function DebatePage() {
     audioQueueRef.current = audioQueueRef.current.filter((queuedId) => queuedId !== messageId);
 
     if (synth.current.speaking || synth.current.pending || isSpeaking) {
-      synth.current.cancel();
-      currentUtteranceRef.current = null;
-      setIsSpeaking(false);
-      setIsPaused(false);
-      setSpeakingId(null);
+      cancelCurrentSpeech();
     }
 
     audioQueueRef.current.unshift(messageId);
@@ -224,6 +297,7 @@ export function DebatePage() {
   };
 
   const handlePauseResume = () => {
+    if (!synth.current || !isSpeaking) return;
     if (isPaused) {
       synth.current.resume();
       setIsPaused(false);
@@ -233,6 +307,11 @@ export function DebatePage() {
     }
   };
 
+  const handleStopAudio = () => {
+    audioQueueRef.current = [];
+    cancelCurrentSpeech();
+  };
+
   const handleStartRecording = async () => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
@@ -240,6 +319,7 @@ export function DebatePage() {
       return;
     }
 
+    cancelCurrentSpeech();
     const recognition = new SpeechRecognition();
     recognition.lang = settings.languageMode === "hinglish" ? "hi-IN" : "en-IN";
     recognition.interimResults = true;
@@ -403,13 +483,22 @@ export function DebatePage() {
                                   {isSpeakingNow ? (isPaused ? "Resume" : "Playing") : "Play"}
                                 </button>
                                 {isSpeakingNow && (
-                                  <button
-                                    type="button"
-                                    onClick={handlePauseResume}
-                                    className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-medium text-slate-200 transition hover:bg-white/10"
-                                  >
-                                    {isPaused ? "Resume" : "Pause"}
-                                  </button>
+                                  <>
+                                    <button
+                                      type="button"
+                                      onClick={handlePauseResume}
+                                      className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-medium text-slate-200 transition hover:bg-white/10"
+                                    >
+                                      {isPaused ? "Resume" : "Pause"}
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={handleStopAudio}
+                                      className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-medium text-slate-200 transition hover:bg-white/10"
+                                    >
+                                      Stop
+                                    </button>
+                                  </>
                                 )}
                               </div>
                             )}
@@ -426,7 +515,7 @@ export function DebatePage() {
 
             {canContinue ? (
               <form
-                // onSubmit={handleSendMessage}
+                onSubmit={handleSendMessage}
                 className="shrink-0 border-t border-slate-800 bg-slate-900/95 px-3 py-2.5 backdrop-blur"
               >
                 <div className="mx-auto max-w-4xl space-y-2.5 flex items-center gap-2">
@@ -439,12 +528,17 @@ export function DebatePage() {
                         value={selectedVoice}
                         onChange={(e) => setSelectedVoice(e.target.value)}
                         className="rounded-full border border-slate-700 bg-slate-900 px-3 py-1 text-xs text-slate-100 outline-none transition focus:border-blue-400"
+                        disabled={availableVoices.length === 0}
                       >
-                        {VOICE_OPTIONS.map((voice) => (
-                          <option key={voice} value={voice}>
-                            {voice}
-                          </option>
-                        ))}
+                        {availableVoices.length === 0 ? (
+                          <option value="">No voices available</option>
+                        ) : (
+                          availableVoices.map((voice) => (
+                            <option key={`${voice.name}-${voice.lang}`} value={voice.name}>
+                              {voice.name} ({voice.lang})
+                            </option>
+                          ))
+                        )}
                       </select>
 
                       <label className="inline-flex items-center gap-1.5 rounded-full border border-slate-700 bg-slate-900 px-3 py-1 text-xs text-slate-300">
@@ -492,6 +586,12 @@ export function DebatePage() {
                     <textarea
                       value={messageText}
                       onChange={(e) => setMessageText(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && !e.shiftKey) {
+                          e.preventDefault();
+                          handleSendMessage(e);
+                        }
+                      }}
                       placeholder="Send your argument or question..."
                       rows={1}
                       className="mt-2 w-full resize-none bg-transparent px-1 py-0.5 text-sm text-slate-100 outline-none transition placeholder:text-slate-500"
@@ -508,7 +608,7 @@ export function DebatePage() {
                       {isConcluding ? "..." : "End"}
                     </button>
                     <button
-                      onClick={handleSendMessage}
+                      type="submit"
                       disabled={!messageText.trim() || loading}
                       aria-label={loading ? "Waiting for response" : "Send message"}
                       className="flex h-10 w-10 items-center justify-center rounded-full border border-blue-400/30 bg-gradient-to-r from-blue-500 to-cyan-500 text-lg font-semibold text-white transition hover:scale-[1.03] disabled:cursor-not-allowed disabled:opacity-50"
@@ -539,10 +639,10 @@ export function DebatePage() {
                   <p className="text-[10px] uppercase tracking-[0.22em] text-slate-500">Experts</p>
                   <p className="mt-1.5 text-xs font-semibold text-slate-100">{selectedAgents.length}</p>
                 </div>
-                <div className="rounded-[18px] border border-slate-800 bg-slate-950/70 px-3 py-2">
+                  <div className="rounded-[18px] border border-slate-800 bg-slate-950/70 px-3 py-2">
                   <p className="text-[10px] uppercase tracking-[0.22em] text-slate-500">Arguments</p>
                   <p className="mt-1.5 text-xs font-semibold text-slate-100">
-                    {mentorMessages.length}/{session.maxArguments}
+                    {mentorTurnCount}/{session.maxArguments}
                   </p>
                 </div>
                 <div className="rounded-[18px] border border-slate-800 bg-slate-950/70 px-3 py-2">
