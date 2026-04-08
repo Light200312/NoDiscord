@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useStore } from '../libs/store'
+import { api } from '../libs/api'
 import { Loader, AlertCircle, CheckCircle2, Briefcase } from 'lucide-react'
 
 const VRInterviewPage = () => {
@@ -31,18 +32,7 @@ const VRInterviewPage = () => {
     setError('')
     
     try {
-      const response = await fetch(
-        `${typeof window !== 'undefined' && window.BACKEND_URL ? window.BACKEND_URL : 'http://localhost:3001'}/api/features/vr-interview`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ scenario: scenarioType }),
-        }
-      )
-
-      if (!response.ok) throw new Error('Failed to generate interview panel')
-      
-      const data = await response.json()
+      const data = await api.generateInterviewPanel({ scenario: scenarioType })
       setResult(data)
       
       const allIds = new Set([

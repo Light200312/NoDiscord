@@ -2,6 +2,10 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { api } from "./api";
 
+function normalizeLanguageMode(value) {
+  return String(value || "").trim().toLowerCase() === "hinglish" ? "hinglish" : "english_in";
+}
+
 const initialSetup = {
   topic: "",
   temperature: "analytical",
@@ -39,10 +43,17 @@ const useStore = create(
 
       setSettings: (updater) =>
         set((state) => ({
-          settings:
-            typeof updater === "function"
-              ? updater(state.settings)
-              : { ...state.settings, ...(updater || {}) },
+          settings: (() => {
+            const nextSettings =
+              typeof updater === "function"
+                ? updater(state.settings)
+                : { ...state.settings, ...(updater || {}) };
+
+            return {
+              ...nextSettings,
+              languageMode: normalizeLanguageMode(nextSettings?.languageMode),
+            };
+          })(),
         })),
 
       clearError: () => set({ error: "" }),
@@ -134,21 +145,35 @@ const useStore = create(
         set({ error: "", loading: true });
         try {
           const mergedSetup = { ...setup, ...(overrides || {}) };
+          const requestPayload = { ...mergedSetup };
+
+          // Feature pages pass generated `agents`; in that flow we must not also
+          // send stale persisted `agentIds` from a previous debate setup.
+          if (Array.isArray(overrides?.agents) && !Array.isArray(overrides?.agentIds)) {
+            delete requestPayload.agentIds;
+          }
+
           const mergedSettings = {
             ...settings,
             ...((overrides && overrides.settings) || {}),
           };
+          const normalizedLanguageMode = normalizeLanguageMode(
+            mergedSettings.languageMode || mergedSetup.languageMode
+          );
           const effectiveTemperature = String(mergedSetup.temperature || mergedSetup.mood || "analytical").trim();
           const data = await api.startSession({
-            ...mergedSetup,
+            ...requestPayload,
             temperature: effectiveTemperature,
             mood: mergedSetup.mood || effectiveTemperature,
-            settings: mergedSettings,
+            settings: {
+              ...mergedSettings,
+              languageMode: normalizedLanguageMode,
+            },
             maxArguments: mergedSettings.maxArguments,
             orchestrationMode: mergedSettings.orchestrationMode,
             memoryMode: mergedSettings.memoryMode,
             contextMode: mergedSettings.contextMode,
-            languageMode: mergedSettings.languageMode,
+            languageMode: normalizedLanguageMode,
           });
           set({
             session: data.session,
@@ -216,7 +241,7 @@ const useStore = create(
               orchestrationMode: session.orchestrationMode || session.settings?.orchestrationMode || "dynamic",
               memoryMode: session.memoryMode || session.settings?.memoryMode || "minimal",
               contextMode: session.contextMode || session.settings?.contextMode || "simple",
-              languageMode: session.languageMode || session.settings?.languageMode || "english_in",
+              languageMode: normalizeLanguageMode(session.languageMode || session.settings?.languageMode),
               maxArguments: session.maxArguments || get().settings.maxArguments,
             },
           });
@@ -273,6 +298,17 @@ const useStore = create(
     }),
     {
       name: "no-discord-store",
+      merge: (persistedState, currentState) => ({
+        ...currentState,
+        ...(persistedState || {}),
+        settings: {
+          ...currentState.settings,
+          ...((persistedState && persistedState.settings) || {}),
+          languageMode: normalizeLanguageMode(
+            persistedState?.settings?.languageMode || currentState.settings.languageMode
+          ),
+        },
+      }),
       partialize: (state) => ({
         setup: state.setup,
         settings: state.settings,

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useStore } from '../libs/store'
+import { api } from '../libs/api'
 import { Loader, AlertCircle, CheckCircle2, Stethoscope } from 'lucide-react'
 
 const HealthDiagnosisPage = () => {
@@ -31,18 +32,7 @@ const HealthDiagnosisPage = () => {
     setError('')
     
     try {
-      const response = await fetch(
-        `${typeof window !== 'undefined' && window.BACKEND_URL ? window.BACKEND_URL : 'http://localhost:3001'}/api/features/health-diagnosis`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ case: medicalCase }),
-        }
-      )
-
-      if (!response.ok) throw new Error('Failed to generate medical panel')
-      
-      const data = await response.json()
+      const data = await api.generateMedicalPanel({ case: medicalCase })
       setResult(data)
       
       const allIds = new Set([

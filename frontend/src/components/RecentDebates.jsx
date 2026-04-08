@@ -1,6 +1,10 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useStore } from "../libs/store";
+
+function getSessionModeLabel(entry) {
+  return entry.temperature || entry.mood || "balanced";
+}
 
 export function RecentDebates() {
   const navigate = useNavigate();
@@ -9,15 +13,21 @@ export function RecentDebates() {
   const loadAgents = useStore((state) => state.loadAgents);
   const loadHistory = useStore((state) => state.loadHistory);
   const openHistorySession = useStore((state) => state.openHistorySession);
+  const [resumeError, setResumeError] = useState("");
 
   useEffect(() => {
     loadHistory();
   }, [loadHistory]);
 
   const handleResume = async (debateId) => {
-    await loadAgents();
-    await openHistorySession(debateId);
-    navigate("/debate");
+    setResumeError("");
+    try {
+      await loadAgents();
+      await openHistorySession(debateId);
+      navigate("/debate");
+    } catch (error) {
+      setResumeError(error.message || "Could not open this saved debate.");
+    }
   };
 
   if (historyLoading || !history || history.length === 0) {
@@ -35,6 +45,12 @@ export function RecentDebates() {
         </div>
       </div>
 
+      {resumeError ? (
+        <div className="mb-4 rounded-2xl border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
+          {resumeError}
+        </div>
+      ) : null}
+
       <div className="max-h-72 space-y-2 overflow-y-auto">
         {history.slice(0, 10).map((debate) => (
           <div
@@ -45,7 +61,7 @@ export function RecentDebates() {
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-semibold text-white">{debate.topic || "Untitled Debate"}</p>
                 <div className="mt-1 flex items-center gap-2 text-xs text-slate-400">
-                  <span className="capitalize">{debate.mood}</span>
+                  <span className="capitalize">{getSessionModeLabel(debate)}</span>
                   <span>•</span>
                   <span>{debate.agentIds?.length || 0} agents</span>
                 </div>

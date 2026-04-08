@@ -91,20 +91,72 @@ function extractTextContent(content) {
     .trim();
 }
 
-function extractFirstJsonObject(text = "") {
+function extractBalancedJsonValue(text = "", opener = "{", closer = "}") {
   const safe = String(text || "");
-  const start = safe.indexOf("{");
-  const end = safe.lastIndexOf("}");
-  if (start < 0 || end <= start) return null;
-  return safe.slice(start, end + 1);
+  const start = safe.indexOf(opener);
+  if (start < 0) return null;
+
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+
+  for (let index = start; index < safe.length; index += 1) {
+    const char = safe[index];
+
+    if (inString) {
+      if (escaped) {
+        escaped = false;
+        continue;
+      }
+      if (char === "\\") {
+        escaped = true;
+        continue;
+      }
+      if (char === "\"") {
+        inString = false;
+      }
+      continue;
+    }
+
+    if (char === "\"") {
+      inString = true;
+      continue;
+    }
+
+    if (char === opener) {
+      depth += 1;
+      continue;
+    }
+
+    if (char === closer) {
+      depth -= 1;
+      if (depth === 0) {
+        return safe.slice(start, index + 1);
+      }
+    }
+  }
+
+  return null;
+}
+
+function extractFirstJsonObject(text = "") {
+  return extractBalancedJsonValue(text, "{", "}");
 }
 
 function extractFirstJsonArray(text = "") {
+  return extractBalancedJsonValue(text, "[", "]");
+}
+
+function extractFirstJson(text = "") {
   const safe = String(text || "");
-  const start = safe.indexOf("[");
-  const end = safe.lastIndexOf("]");
-  if (start < 0 || end <= start) return null;
-  return safe.slice(start, end + 1);
+  const objectStart = safe.indexOf("{");
+  const arrayStart = safe.indexOf("[");
+
+  if (objectStart < 0 && arrayStart < 0) return null;
+  if (arrayStart >= 0 && (objectStart < 0 || arrayStart < objectStart)) {
+    return extractFirstJsonArray(safe);
+  }
+  return extractFirstJsonObject(safe);
 }
 
 function sleep(ms) {
@@ -593,7 +645,7 @@ async function callWithFallback(request, { maxTokens = 1400, preferredProviders 
 async function callJsonTask(input) {
   const request = normalizePromptInput(input);
   const { text } = await callWithFallback(request, { maxTokens: request.maxTokens || TOKEN_BUDGETS.smallJson });
-  const jsonText = extractFirstJsonObject(text) || extractFirstJsonArray(text);
+  const jsonText = extractFirstJson(text);
   if (!jsonText) throw new Error("Model did not return JSON.");
   return JSON.parse(jsonText);
 }
@@ -605,8 +657,12 @@ function formatConversation(conversation = []) {
     .join("\n");
 }
 
+function normalizeLanguageMode(value) {
+  return String(value || "").trim().toLowerCase() === "hinglish" ? "hinglish" : "english_in";
+}
+
 function getLanguageInstruction(languageMode = "english_in") {
-  if (languageMode === "hinglish") {
+  if (normalizeLanguageMode(languageMode) === "hinglish") {
     return [
       "Respond in natural Hinglish using roman script only.",
       "Keep the language about 80% Hindi and 20% English, like a normal Indian speaker in everyday conversation.",
@@ -690,12 +746,13 @@ function buildMentorSystem(agent, mood, temperature, languageMode) {
 }
 
 function buildFallbackReply({ agent, topic, userText, turnNumber, languageMode }) {
+  const normalizedLanguageMode = normalizeLanguageMode(languageMode);
   const intro =
-    languageMode === "hinglish"
+    normalizedLanguageMode === "hinglish"
       ? `Tumhari baat mein potential hai, lekin "${topic}" par ise aur sharp banana padega.`
       : `Your point has potential, but it needs sharper structure on "${topic}".`;
 
-  if (languageMode === "hinglish") {
+  if (normalizedLanguageMode === "hinglish") {
     return `${intro} Latest point "${userText}" ko aur strong banane ke liye ek concrete mechanism, ek solid example, aur ek clear consequence add karo.\n\nTurn ${turnNumber} mein ${agent.specialAbility || "apni strongest reasoning"} par lean karo aur tone ${agent.speechStyle || "clear aur direct"} rakho.`;
   }
 

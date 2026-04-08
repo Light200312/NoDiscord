@@ -1,6 +1,10 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useStore } from "../libs/store";
+
+function getSessionModeLabel(entry) {
+  return entry.temperature || entry.mood || "balanced";
+}
 
 function HistoryPage() {
   const navigate = useNavigate();
@@ -9,6 +13,7 @@ function HistoryPage() {
   const loadHistory = useStore((state) => state.loadHistory);
   const loadAgents = useStore((state) => state.loadAgents);
   const openHistorySession = useStore((state) => state.openHistorySession);
+  const [openError, setOpenError] = useState("");
 
   useEffect(() => {
     loadAgents();
@@ -16,8 +21,13 @@ function HistoryPage() {
   }, [loadAgents, loadHistory]);
 
   const handleOpen = async (sessionId) => {
-    await openHistorySession(sessionId);
-    navigate("/debate");
+    setOpenError("");
+    try {
+      await openHistorySession(sessionId);
+      navigate("/debate");
+    } catch (error) {
+      setOpenError(error.message || "Could not open this saved debate.");
+    }
   };
 
   return (
@@ -37,6 +47,11 @@ function HistoryPage() {
         </div>
 
         <div className="rounded-[28px] border border-slate-800 bg-slate-900/75 p-5 shadow-2xl shadow-black/20 backdrop-blur sm:p-6">
+          {openError ? (
+            <div className="mb-4 rounded-2xl border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
+              {openError}
+            </div>
+          ) : null}
           {historyLoading ? (
             <p className="text-sm text-slate-400">Loading saved debates...</p>
           ) : history.length === 0 ? (
@@ -54,7 +69,7 @@ function HistoryPage() {
                     <div className="min-w-0">
                       <p className="text-lg font-semibold text-white">{entry.topic}</p>
                       <p className="mt-2 text-xs uppercase tracking-[0.22em] text-slate-500">
-                        {entry.mood} • {entry.agentIds?.length || 0} agents
+                        {getSessionModeLabel(entry)} • {entry.agentIds?.length || 0} agents
                       </p>
                     </div>
                     <span

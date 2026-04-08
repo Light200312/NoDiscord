@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useStore } from '../libs/store'
+import { api } from '../libs/api'
 import { Loader, AlertCircle, CheckCircle2, BookOpen } from 'lucide-react'
 
 const LearnLawsPage = () => {
@@ -31,18 +32,7 @@ const LearnLawsPage = () => {
     setError('')
     
     try {
-      const response = await fetch(
-        `${typeof window !== 'undefined' && window.BACKEND_URL ? window.BACKEND_URL : 'http://localhost:3001'}/api/features/learn-laws`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ topic: lawTopic }),
-        }
-      )
-
-      if (!response.ok) throw new Error('Failed to generate legal panel')
-      
-      const data = await response.json()
+      const data = await api.generateLegalPanel({ topic: lawTopic })
       setResult(data)
       
       const allIds = new Set([

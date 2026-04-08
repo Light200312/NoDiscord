@@ -70,6 +70,10 @@ function clampNumber(value, { min, max, fallback }) {
   return Math.min(max, Math.max(min, parsed));
 }
 
+function normalizeLanguageMode(value) {
+  return String(value || "").trim().toLowerCase() === "hinglish" ? "hinglish" : "english_in";
+}
+
 function inferAgentCategory(payload = {}) {
   const explicit = String(payload.category || "").trim().toLowerCase();
   if (AGENT_CATEGORY_ENUM.includes(explicit)) return explicit;
@@ -509,7 +513,7 @@ async function hydrateSession(baseSession) {
     orchestrationMode: baseSession.orchestrationMode || baseSession.settings?.orchestrationMode || "dynamic",
     memoryMode: baseSession.memoryMode || baseSession.settings?.memoryMode || "minimal",
     contextMode: baseSession.contextMode || baseSession.settings?.contextMode || "simple",
-    languageMode: baseSession.languageMode || baseSession.settings?.languageMode || "english_in",
+    languageMode: normalizeLanguageMode(baseSession.languageMode || baseSession.settings?.languageMode),
     scopeMode: baseSession.scopeMode || baseSession.settings?.scopeMode || "global",
     scopeCountry: baseSession.scopeCountry || baseSession.settings?.scopeCountry || "",
     sourceType: baseSession.sourceType || "debate",
@@ -938,7 +942,7 @@ async function startSession(payload = {}) {
     orchestrationMode: String(settings.orchestrationMode || payload.orchestrationMode || "dynamic"),
     memoryMode: String(settings.memoryMode || payload.memoryMode || "minimal"),
     contextMode: String(settings.contextMode || payload.contextMode || "simple"),
-    languageMode: String(settings.languageMode || payload.languageMode || "english_in"),
+    languageMode: normalizeLanguageMode(settings.languageMode || payload.languageMode),
     scopeMode: String(settings.scopeMode || payload.scopeMode || "global"),
     scopeCountry: String(settings.scopeCountry || payload.scopeCountry || ""),
     sourceType: String(payload.sourceType || "debate"),
@@ -955,7 +959,7 @@ async function startSession(payload = {}) {
       orchestrationMode: String(settings.orchestrationMode || payload.orchestrationMode || "dynamic"),
       memoryMode: String(settings.memoryMode || payload.memoryMode || "minimal"),
       contextMode: String(settings.contextMode || payload.contextMode || "simple"),
-      languageMode: String(settings.languageMode || payload.languageMode || "english_in"),
+      languageMode: normalizeLanguageMode(settings.languageMode || payload.languageMode),
       scopeMode: String(settings.scopeMode || payload.scopeMode || "global"),
       scopeCountry: String(settings.scopeCountry || payload.scopeCountry || ""),
     },

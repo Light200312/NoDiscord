@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useStore } from '../libs/store'
+import { api } from '../libs/api'
 import { Loader, AlertCircle, CheckCircle2 } from 'lucide-react'
 
 const HistoryDebatePage = () => {
@@ -31,18 +32,7 @@ const HistoryDebatePage = () => {
     setError('')
     
     try {
-      const response = await fetch(
-        `${typeof window !== 'undefined' && window.BACKEND_URL ? window.BACKEND_URL : 'http://localhost:3001'}/api/debate/history`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ topic: historicalTopic }),
-        }
-      )
-
-      if (!response.ok) throw new Error('Failed to generate historical debate')
-      
-      const data = await response.json()
+      const data = await api.generateHistoricalDebate({ topic: historicalTopic })
       setResult(data)
       
       // Auto-select all generated debaters
