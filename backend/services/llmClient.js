@@ -78,6 +78,26 @@ const PROVIDER_POLICIES = {
   },
 };
 
+function getEnvValue(...keys) {
+  for (const key of keys) {
+    const value = process.env[key];
+    if (typeof value === "string" && value.trim()) return value.trim();
+  }
+  return "";
+}
+
+function isTruthyEnv(value) {
+  const normalized = String(value || "").trim().toLowerCase();
+  return ["1", "true", "yes", "on"].includes(normalized);
+}
+
+function isTgiConfigured() {
+  if (isTruthyEnv(process.env.TGI_DISABLED)) return false;
+  if (isTruthyEnv(process.env.TGI_ENABLED)) return true;
+  return Object.prototype.hasOwnProperty.call(process.env, "TGI_BASE_URL")
+    && String(process.env.TGI_BASE_URL || "").trim().length > 0;
+}
+
 function extractTextContent(content) {
   if (typeof content === "string") return content.trim();
   if (!Array.isArray(content)) return "";
@@ -377,6 +397,41 @@ function buildProviderErrorMessage(provider, error) {
   return `${provider} failed (${status}): ${details}`;
 }
 
+async function callOpenRouterPrimary({
+  system,
+  prompt,
+  model = OPENROUTER_MODEL,
+  temperature = 0.4,
+  maxTokens = 1400,
+}) {
+  const apiKey = process.env.OPENROUTER_API_KEY1;
+  if (!apiKey) throw new Error("Missing OPENROUTER_API_KEY1.");
+
+  const response = await runWithProviderPolicy("openrouter", () =>
+    axios.post(
+      "https://openrouter.ai/api/v1/chat/completions",
+      {
+        model,
+        temperature,
+        max_tokens: maxTokens,
+        messages: [
+          { role: "system", content: system },
+          { role: "user", content: prompt },
+        ],
+      },
+      {
+        timeout: TIMEOUT_MS,
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "content-type": "application/json",
+        },
+      }
+    )
+  );
+
+  return extractTextContent(response.data?.choices?.[0]?.message?.content);
+}
+
 async function callOpenRouter({ system, prompt, model = OPENROUTER_MODEL, temperature = 0.4, maxTokens = 1400 }) {
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) throw new Error("Missing OPENROUTER_API_KEY.");
@@ -442,8 +497,8 @@ async function callOpenRouterSecondary({
 }
 
 async function callGrok({ system, prompt, model = GROK_MODEL, temperature = 0.4, maxTokens = 1400 }) {
-  const apiKey = process.env.GROK_API_Key;
-  if (!apiKey) throw new Error("Missing GROK_API_Key.");
+  const apiKey = getEnvValue("GROK_API_KEY", "GROK_API_Key");
+  if (!apiKey) throw new Error("Missing GROK_API_KEY.");
 
   const response = await runWithProviderPolicy("grok", () =>
     axios.post(
@@ -507,7 +562,7 @@ async function callGemini({ system, prompt, model = GEMINI_MODEL, temperature = 
 }
 
 async function callTogetherAI({ system, prompt, model = TOGETHER_MODEL, temperature = 0.4, maxTokens = 1400 }) {
-  const apiKey = process.env.TGAI;
+  const apiKey = getEnvValue("TGAI", "TOGETHER_API_KEY");
   if (!apiKey) throw new Error("Missing TGAI.");
 
   const response = await runWithProviderPolicy("together", () =>
@@ -591,32 +646,34 @@ async function callTGI({ system, prompt, temperature = 0.4, maxTokens = 1400 }) 
 
 function getProviderChain() {
   return [
+    { name: "openrouter-primary", enabled: Boolean(process.env.OPENROUTER_API_KEY1), fn: callOpenRouterPrimary },
     { name: "openrouter", enabled: Boolean(process.env.OPENROUTER_API_KEY), fn: callOpenRouter },
     { name: "openrouter-backup", enabled: Boolean(process.env.OPENROUTER_API_KEY2), fn: callOpenRouterSecondary },
-    { name: "grok", enabled: Boolean(process.env.GROK_API_Key), fn: callGrok },
+    { name: "grok", enabled: Boolean(getEnvValue("GROK_API_KEY", "GROK_API_Key")), fn: callGrok },
     { name: "gemini", enabled: Boolean(process.env.GEMINI_API_KEY), fn: callGemini },
-    { name: "together", enabled: Boolean(process.env.TGAI), fn: callTogetherAI },
-    { name: "tgi", enabled: true, fn: callTGI },
+    { name: "together", enabled: Boolean(getEnvValue("TGAI", "TOGETHER_API_KEY")), fn: callTogetherAI },
+    { name: "tgi", enabled: isTgiConfigured(), fn: callTGI },
   ];
 }
 
 function hasLLMProviderConfigured() {
-  return Boolean(
-      process.env.OPENROUTER_API_KEY ||
-      process.env.OPENROUTER_API_KEY2 ||
-      process.env.GROK_API_Key ||
-      process.env.GEMINI_API_KEY ||
-      process.env.TGAI ||
-      process.env.TGI_BASE_URL
-  );
+  return getProviderChain().some((provider) => provider.enabled);
 }
 
 async function callWithFallback(request, { maxTokens = 1400, preferredProviders } = {}) {
   const chain = getProviderChain().filter((provider) =>
     Array.isArray(preferredProviders) && preferredProviders.length
-      ? preferredProviders.includes(provider.name)
+      ? preferredProviders.includes(provider.name) && provider.enabled
       : provider.enabled
   );
+
+  if (!chain.length) {
+    const preferredLabel =
+      Array.isArray(preferredProviders) && preferredProviders.length
+        ? ` for preferred providers: ${preferredProviders.join(", ")}`
+        : "";
+    throw new Error(`No LLM providers are configured${preferredLabel}.`);
+  }
 
   const errors = [];
 
@@ -890,6 +947,7 @@ export {
   callGemini,
   callGrok,
   callJsonTask,
+  callOpenRouterPrimary,
   callOpenRouter,
   callTGI,
   callTogetherAI,

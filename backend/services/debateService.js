@@ -1653,71 +1653,90 @@ The figures must be specific, historically grounded, and among the most importan
 }
 
 async function generateLegalPanel({ topic = "" } = {}) {
-  // Use pre-built agents optimized for legal/policy discussions
-  // Minister Kavya (policy expert) + Dr. Sara Nair (evidence-based reasoning)
-  const selectedAgents = agents.filter((agent) =>
-    ["Minister Kavya", "Dr. Sara Nair"].includes(agent.name)
-  );
+  const legalPanelBlueprint = {
+    judges: [
+      {
+        name: "Minister Kavya",
+        role: "Policy Advisor",
+        expertise: "public policy, governance, constitutional tradeoffs",
+      },
+      {
+        name: "Dr. Sara Nair",
+        role: "Evidence Analyst",
+        expertise: "evidence review, causal reasoning, legal impact analysis",
+      },
+    ],
+    advocates: [
+      {
+        name: "Prof. Meera Joshi",
+        role: "Civic Educator",
+        expertise: "civics, public institutions, rights education",
+      },
+      {
+        name: "Arjun Patel",
+        role: "Compliance & Risk Advisor",
+        expertise: "implementation constraints, public safety, operational risk",
+      },
+    ],
+  };
 
-  // If pre-built agents not available, create fallback
-  const judges = selectedAgents.length > 0
-    ? selectedAgents.slice(0, 2).map((agent) => ({
-        ...agent,
-        id: createId("judge"),
-        role: agent.name === "Minister Kavya" ? "Policy Advisor" : "Evidence Analyst",
-        createdFrom: "legal-prebuilt",
-        sourceTopic: topic,
-      }))
-    : [
-        {
-          id: createId("judge"),
-          name: "Justice Rajesh Kumar",
-          role: "Supreme Court Judge",
-          expertise: "Constitutional law, judicial interpretation",
-          stats: { logic: 90, rhetoric: 80, bias: 15 },
-        },
-        {
-          id: createId("judge"),
-          name: "Justice Priya Sharma",
-          role: "High Court Judge",
-          expertise: "Criminal law, evidence",
-          stats: { logic: 88, rhetoric: 78, bias: 18 },
-        },
-      ];
+  const buildPrebuiltPanel = (entries = [], idPrefix) =>
+    entries
+      .map((entry) => {
+        const agent = agents.find((candidate) => candidate.name === entry.name);
+        if (!agent) return null;
+        return {
+          ...agent,
+          id: createId(idPrefix),
+          role: entry.role,
+          expertise: entry.expertise || agent.expertise,
+          createdFrom: "legal-prebuilt",
+          sourceTopic: topic,
+        };
+      })
+      .filter(Boolean);
 
-  // Advocates: use remaining pre-built agents with legal/policy focus
-  const remainingAgents = agents.filter(
-    (agent) => !["Minister Kavya", "Dr. Sara Nair"].includes(agent.name)
-  );
-  const advocates = remainingAgents.length > 0
-    ? remainingAgents.slice(0, 2).map((agent) => ({
-        ...agent,
-        id: createId("advocate"),
-        role: "Advocate",
-        createdFrom: "legal-prebuilt",
-        sourceTopic: topic,
-      }))
-    : [
-        {
-          id: createId("advocate"),
-          name: "Legal Scholar 1",
-          role: "Advocate",
-          expertise: topic || "Legal Analysis",
-          stats: { logic: 85, rhetoric: 75, bias: 25 },
-        },
-        {
-          id: createId("advocate"),
-          name: "Legal Scholar 2",
-          role: "Advocate",
-          expertise: topic || "Legal Analysis",
-          stats: { logic: 82, rhetoric: 78, bias: 30 },
-        },
-      ];
+  const judges = buildPrebuiltPanel(legalPanelBlueprint.judges, "judge");
+  const advocates = buildPrebuiltPanel(legalPanelBlueprint.advocates, "advocate");
+
+  const fallbackJudges = [
+    {
+      id: createId("judge"),
+      name: "Justice Rajesh Kumar",
+      role: "Supreme Court Judge",
+      expertise: "Constitutional law, judicial interpretation",
+      stats: { logic: 90, rhetoric: 80, bias: 15 },
+    },
+    {
+      id: createId("judge"),
+      name: "Justice Priya Sharma",
+      role: "High Court Judge",
+      expertise: "Criminal law, evidence",
+      stats: { logic: 88, rhetoric: 78, bias: 18 },
+    },
+  ];
+
+  const fallbackAdvocates = [
+    {
+      id: createId("advocate"),
+      name: "Legal Scholar 1",
+      role: "Advocate",
+      expertise: topic || "Legal Analysis",
+      stats: { logic: 85, rhetoric: 75, bias: 25 },
+    },
+    {
+      id: createId("advocate"),
+      name: "Legal Scholar 2",
+      role: "Advocate",
+      expertise: topic || "Legal Analysis",
+      stats: { logic: 82, rhetoric: 78, bias: 30 },
+    },
+  ];
 
   return {
     topic,
-    judges: judges.map(toClientAgent),
-    advocates: advocates.map(toClientAgent),
+    judges: (judges.length ? judges : fallbackJudges).map(toClientAgent),
+    advocates: (advocates.length ? advocates : fallbackAdvocates).map(toClientAgent),
   };
 }
 

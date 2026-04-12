@@ -98,11 +98,11 @@ export function DebatePage() {
 
     if (availableVoices.length > 0) {
       const preferredVoice =
-        settings.languageMode === "hinglish"
+        effectiveLanguageMode === "hinglish"
           ? availableVoices.find((voice) => /india|hindi/i.test(`${voice.name} ${voice.lang}`))
-          : settings.languageMode === "english_us"
-          ? availableVoices.find((voice) => /en[-_]us|united states|american|us english/i.test(`${voice.lang} ${voice.name}`))
-          : availableVoices.find((voice) => /en[-_]in|india/i.test(`${voice.lang} ${voice.name}`));
+          : availableVoices.find((voice) =>
+              /en[-_]us|united states|american|us english/i.test(`${voice.lang} ${voice.name}`)
+            );
       utterance.voice = preferredVoice || availableVoices[0];
     }
 
@@ -257,6 +257,11 @@ export function DebatePage() {
     .map((id) => agents.find((a) => a.id === id))
     .filter(Boolean);
 
+  const effectiveLanguageMode =
+    settings.languageMode === "hinglish" || session?.languageMode === "hinglish"
+      ? "hinglish"
+      : "english_us";
+
   const mentorTurnCount = (session?.messages || []).filter((m) => m.type === "mentor").length;
   const canContinue = session && !session.closed && mentorTurnCount < (session.maxArguments || 25);
   const activeAgentInfo = showAgentInfo || selectedAgents[0] || null;
@@ -315,11 +320,7 @@ export function DebatePage() {
     cancelCurrentSpeech();
     const recognition = new SpeechRecognition();
     recognition.lang =
-      settings.languageMode === "hinglish"
-        ? "hi-IN"
-        : settings.languageMode === "english_us"
-        ? "en-US"
-        : "en-IN";
+      effectiveLanguageMode === "hinglish" ? "hi-IN" : "en-US";
     recognition.interimResults = true;
     recognition.continuous = false;
 
@@ -533,11 +534,10 @@ export function DebatePage() {
                       </label>
 
                       <select
-                        value={settings.languageMode}
+                        value={effectiveLanguageMode}
                         onChange={(e) => setSettings({ languageMode: e.target.value })}
                         className="rounded-full border border-slate-700 bg-slate-900 px-3 py-1 text-xs text-slate-100 outline-none transition focus:border-blue-400"
                       >
-                        <option value="english_in">English (IN)</option>
                         <option value="english_us">English (US)</option>
                         <option value="hinglish">Hinglish</option>
                       </select>
@@ -640,11 +640,7 @@ export function DebatePage() {
                 <div className="rounded-[18px] border border-slate-800 bg-slate-950/70 px-3 py-2">
                   <p className="text-[10px] uppercase tracking-[0.22em] text-slate-500">Language</p>
                   <p className="mt-1.5 text-xs font-semibold text-slate-100">
-                    {session.languageMode === "hinglish" || settings.languageMode === "hinglish"
-                      ? "Hinglish"
-                      : session.languageMode === "english_us" || settings.languageMode === "english_us"
-                      ? "English (US)"
-                      : "English (IN)"}
+                    {effectiveLanguageMode === "hinglish" ? "Hinglish" : "English (US)"}
                   </p>
                 </div>
               </div>
